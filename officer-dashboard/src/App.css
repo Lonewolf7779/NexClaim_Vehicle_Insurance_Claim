@@ -1,0 +1,643 @@
+/* -------------------------------------------------
+   Officer Dashboard Styles
+   -------------------------------------------------
+   Minimal CSS focused on functionality and structure.
+   Status badges use color coding for quick visual identification.
+   ------------------------------------------------- */
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: #f5f5f5;
+  color: #333;
+  line-height: 1.6;
+}
+
+/* App Layout */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background-color: #2c3e50;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.app-header nav a {
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.app-header nav a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.app-main {
+  flex: 1;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Loading and Error States */
+.loading,
+.error,
+.not-found,
+.no-data {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+}
+
+.error {
+  color: #e74c3c;
+}
+
+/* Status Badges */
+.status-badge,
+.risk-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Badge Color Variants */
+.badge-gray {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.badge-blue {
+  background-color: #3498db;
+  color: white;
+}
+
+.badge-orange {
+  background-color: #f39c12;
+  color: white;
+}
+
+.badge-green {
+  background-color: #27ae60;
+  color: white;
+}
+
+.badge-red {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.badge-purple {
+  background-color: #9b59b6;
+  color: white;
+}
+
+/* Claims List Styles */
+.claim-list h2 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+.claims-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-collapse: collapse;
+}
+
+.claims-table th,
+.claims-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.claims-table th {
+  background-color: #34495e;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.claims-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clickable-row:hover {
+  background-color: #e3f2fd !important;
+}
+
+/* Claim Details Styles */
+.claim-details {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.details-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.back-btn {
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.back-btn:hover {
+  background-color: #7f8c8d;
+}
+
+.details-header h2 {
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+/* Section Styles */
+section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+section:last-child {
+  border-bottom: none;
+}
+
+section h3 {
+  color: #2c3e50;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+/* Claim Summary Grid */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-item label {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.summary-item span {
+  font-size: 0.875rem;
+  color: #2c3e50;
+}
+
+.description-box {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.description-box label {
+  display: block;
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.description-box p {
+  color: #2c3e50;
+  line-height: 1.6;
+}
+
+/* Risk Section */
+.risk-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.risk-badge-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.escalated-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.risk-breakdown {
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.risk-breakdown p {
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.no-risk-data {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+/* Validation Table */
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.validation-table th,
+.validation-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.validation-table th {
+  background-color: #ecf0f1;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.validation-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.approve-btn {
+  background-color: #27ae60;
+  color: white;
+}
+
+.approve-btn:hover:not(:disabled) {
+  background-color: #229954;
+}
+
+.reject-btn {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.reject-btn:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.escalate-btn {
+  background-color: #9b59b6;
+  color: white;
+}
+
+.escalate-btn:hover:not(:disabled) {
+  background-color: #8e44ad;
+}
+
+.evaluate-btn {
+  background-color: #3498db;
+  color: white;
+  margin-top: 1rem;
+}
+
+.evaluate-btn:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.no-actions {
+  color: #7f8c8d;
+  font-style: italic;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+/* -------------------------------------------------
+   Customer Claims Page Styles
+   ------------------------------------------------- */
+
+.customer-claims-page h2 {
+  margin-bottom: 1.5rem;
+  color: #2c3e50;
+}
+
+/* -------------------------------------------------
+   Customer Claim Detail Page Styles
+   ------------------------------------------------- */
+
+.customer-claim-detail {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Financial Section */
+.financial-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.financial-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  background-color: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 4px;
+}
+
+.financial-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.financial-item label {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.financial-item span {
+  font-size: 1rem;
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.highlight-amount {
+  color: #27ae60;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+/* Timeline Section */
+.timeline-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.timeline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  padding: 1rem 0;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.step-indicator {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  z-index: 1;
+}
+
+.step-label {
+  font-size: 0.75rem;
+  color: #7f8c8d;
+  text-align: center;
+  max-width: 100px;
+  font-weight: 500;
+}
+
+.step-connector {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  z-index: 0;
+}
+
+/* Timeline Step States */
+.timeline-step.completed .step-indicator {
+  background-color: #27ae60;
+  color: white;
+}
+
+.timeline-step.current .step-indicator {
+  background-color: #3498db;
+  color: white;
+  box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.2);
+}
+
+.timeline-step.pending .step-indicator {
+  background-color: #ecf0f1;
+  color: #95a5a6;
+}
+
+.timeline-step.completed .step-label {
+  color: #27ae60;
+  font-weight: 600;
+}
+
+.timeline-step.current .step-label {
+  color: #3498db;
+  font-weight: 600;
+}
+
+.step-connector.completed {
+  background-color: #27ae60;
+}
+
+.step-connector.pending {
+  background-color: #ecf0f1;
+}
+
+.status-notice {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #fdf2e9;
+  border-left: 4px solid #f39c12;
+  border-radius: 4px;
+  color: #d35400;
+  font-weight: 500;
+}
+
+/* Simplified validation table for customers */
+.validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.validation-table th,
+.validation-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.validation-table th {
+  background-color: #ecf0f1;
+  font-weight: 600;
+  color: #2c3e50;
+  width: 70%;
+}
+
+.validation-table td:last-child {
+  text-align: center;
+  width: 30%;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+
+  .app-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .app-main {
+    padding: 1rem;
+  }
+
+  .claims-table {
+    font-size: 0.875rem;
+  }
+
+  .claims-table th,
+  .claims-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
+
+  .timeline {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .timeline-step {
+    flex-direction: row;
+    width: 100%;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .step-connector {
+    display: none;
+  }
+
+  .step-label {
+    text-align: left;
+    max-width: none;
+  }
+
+  .financial-grid {
+    grid-template-columns: 1fr;
+  }
+}

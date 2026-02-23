@@ -1,0 +1,10 @@
+from enum import Enum
+
+
+class ClaimStatus(Enum):
+    SUBMITTED = "SUBMITTED"
+    PROCESSING = "PROCESSING"
+    READY_FOR_REVIEW = "READY_FOR_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    ESCALATED = "ESCALATED"
