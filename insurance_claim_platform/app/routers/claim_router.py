@@ -12,7 +12,9 @@ from datetime import datetime
 
 from app.db.deps import get_db
 from app.models.models import Claim, ClaimStatusHistory, Policy
-from app.schemas.claim import ClaimCreate, ClaimResponse, ClaimUpdateStatus
+from app.schemas.claim import ClaimCreate, ClaimResponse, ClaimUpdateStatus, EscalationRequest, OverrideApprovalRequest, RejectionRequest
+
+
 from app.models.claim_status import ClaimStatus
 from app.models.extracted_document import ExtractedDocument
 from app.models.extracted_field import ExtractedField
@@ -44,7 +46,22 @@ def create_claim(claim: ClaimCreate, db: Session = Depends(get_db)):
     """
     Create a new claim with generated claim number.
     Default status is set to SUBMITTED.
+    
+    Validation: A policy cannot have multiple active claims.
+    Active claims are those with status NOT IN (APPROVED, REJECTED).
     """
+    # Check if there's already an active claim for this policy
+    existing_active_claim = db.query(Claim).filter(
+        Claim.policy_id == claim.policy_id,
+        Claim.status.notin_([ClaimStatus.APPROVED, ClaimStatus.REJECTED])
+    ).first()
+    
+    if existing_active_claim:
+        raise HTTPException(
+            status_code=400,
+            detail="Active claim already exists for this policy."
+        )
+    
     claim_number = f"CLM-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     db_claim = Claim(
@@ -607,9 +624,316 @@ class SettlementRequest(BaseModel):
     deductible_amount: float
 
 
-class RejectionRequest(BaseModel):
-    """Request body for claim rejection."""
-    rejection_reason: str
+# -------------------------------------------------
+# Additional Request Schemas
+# -------------------------------------------------
+class AssignClaimRequest(BaseModel):
+    officer_id: str
+    notes: Optional[str] = None
+
+
+class RequestDocumentsRequest(BaseModel):
+    document_types: List[str]
+    reason: str
+
+
+class AssignSurveyorRequest(BaseModel):
+    surveyor_id: str
+    surveyor_name: str
+    notes: Optional[str] = None
+
+
+class UpdateClaimStatusRequest(BaseModel):
+    status: ClaimStatus
+    notes: Optional[str] = None
+
+
+class ClaimClosureRequest(BaseModel):
+    final_notes: str
+    settlement_mode: Optional[str] = None  # "CASHLESS" or "REIMBURSEMENT"
+
+
+# -------------------------------------------------
+# New Workflow Endpoints
+# -------------------------------------------------
+
+# -------------------------------------------------
+# Assign Claim to Officer
+# -------------------------------------------------
+@router.post("/{claim_id}/assign", response_model=ClaimResponse)
+def assign_claim(
+    claim_id: int,
+    request: AssignClaimRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Assign a claim to an officer for review.
+    Changes status from SUBMITTED to UNDER_REVIEW.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status not in [ClaimStatus.SUBMITTED, ClaimStatus.UNDER_REVIEW]:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in SUBMITTED or UNDER_REVIEW status to assign."
+        )
+    
+    old_status = claim.status
+    if claim.status == ClaimStatus.SUBMITTED:
+        claim.status = ClaimStatus.UNDER_REVIEW
+        status_history = ClaimStatusHistory(
+            claim_id=claim.id,
+            old_status=old_status,
+            new_status=ClaimStatus.UNDER_REVIEW
+        )
+        db.add(status_history)
+    
+    db.commit()
+    db.refresh(claim)
+    
+    return claim
+
+
+# -------------------------------------------------
+# Request Additional Documents
+# -------------------------------------------------
+@router.post("/{claim_id}/request-documents")
+def request_documents(
+    claim_id: int,
+    request: RequestDocumentsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Request additional documents from customer.
+    Changes status to DOCUMENT_REQUIRED.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status not in [ClaimStatus.UNDER_REVIEW, ClaimStatus.DOCUMENT_REQUIRED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in UNDER_REVIEW or DOCUMENT_REQUIRED status."
+        )
+    
+    old_status = claim.status
+    claim.status = ClaimStatus.DOCUMENT_REQUIRED
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.DOCUMENT_REQUIRED
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return {
+        "message": "Documents requested",
+        "document_types": request.document_types,
+        "reason": request.reason,
+        "claim_id": claim.id
+    }
+
+
+# -------------------------------------------------
+# Assign Surveyor
+# -------------------------------------------------
+@router.post("/{claim_id}/assign-surveyor")
+def assign_surveyor(
+    claim_id: int,
+    request: AssignSurveyorRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Assign a surveyor to inspect the vehicle.
+    For major accidents. Changes status to SURVEY_ASSIGNED.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status != ClaimStatus.UNDER_REVIEW:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in UNDER_REVIEW status to assign surveyor."
+        )
+    
+    old_status = claim.status
+    claim.status = ClaimStatus.SURVEY_ASSIGNED
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.SURVEY_ASSIGNED
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return {
+        "message": "Surveyor assigned",
+        "surveyor_id": request.surveyor_id,
+        "surveyor_name": request.surveyor_name,
+        "claim_id": claim.id
+    }
+
+
+# -------------------------------------------------
+# Mark Survey Complete
+# -------------------------------------------------
+@router.post("/{claim_id}/survey-complete", response_model=ClaimResponse)
+def survey_complete(
+    claim_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Mark survey as complete after surveyor uploads report.
+    Changes status from SURVEY_ASSIGNED to SURVEY_COMPLETED.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status != ClaimStatus.SURVEY_ASSIGNED:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in SURVEY_ASSIGNED status."
+        )
+    
+    old_status = claim.status
+    claim.status = ClaimStatus.SURVEY_COMPLETED
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.SURVEY_COMPLETED
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return claim
+
+
+# -------------------------------------------------
+# Flag for Investigation
+# -------------------------------------------------
+@router.post("/{claim_id}/flag-investigation", response_model=ClaimResponse)
+def flag_investigation(
+    claim_id: int,
+    reason: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Flag claim for fraud investigation.
+    Changes status to UNDER_INVESTIGATION.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status not in [ClaimStatus.UNDER_REVIEW, ClaimStatus.SURVEY_COMPLETED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in UNDER_REVIEW or SURVEY_COMPLETED status."
+        )
+    
+    old_status = claim.status
+    claim.status = ClaimStatus.UNDER_INVESTIGATION
+    claim.escalation_reason = reason
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.UNDER_INVESTIGATION
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return claim
+
+
+# -------------------------------------------------
+# Update Claim Status (Generic)
+# -------------------------------------------------
+@router.post("/{claim_id}/update-status", response_model=ClaimResponse)
+def update_claim_status_workflow(
+    claim_id: int,
+    request: UpdateClaimStatusRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update claim status to any valid status.
+    Used for payment and closure workflows.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    old_status = claim.status
+    claim.status = request.status
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=request.status
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return claim
+
+
+# -------------------------------------------------
+# Close Claim
+# -------------------------------------------------
+@router.post("/{claim_id}/close")
+def close_claim(
+    claim_id: int,
+    request: ClaimClosureRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Close a claim after payment or repair completion.
+    Changes status to CLOSED.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status not in [ClaimStatus.PAID, ClaimStatus.APPROVED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in PAID or APPROVED status to close."
+        )
+    
+    old_status = claim.status
+    claim.status = ClaimStatus.CLOSED
+    claim.escalation_reason = request.final_notes
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.CLOSED
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+    
+    return {
+        "message": "Claim closed successfully",
+        "claim_id": claim.id,
+        "claim_number": claim.claim_number,
+        "status": claim.status.value,
+        "settlement_mode": request.settlement_mode,
+        "final_notes": request.final_notes
+    }
 
 
 # -------------------------------------------------
@@ -655,10 +979,10 @@ def approve_claim(
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     
-    if claim.status != ClaimStatus.READY_FOR_REVIEW:
+    if claim.status not in [ClaimStatus.READY_FOR_REVIEW, ClaimStatus.UNDER_REVIEW, ClaimStatus.SURVEY_COMPLETED]:
         raise HTTPException(
             status_code=400,
-            detail="Claim must be in READY_FOR_REVIEW status to approve."
+            detail="Claim must be in READY_FOR_REVIEW, UNDER_REVIEW, or SURVEY_COMPLETED status to approve."
         )
     
     # -------------------------------------------------
@@ -669,8 +993,40 @@ def approve_claim(
         raise HTTPException(status_code=400, detail="Policy not found for claim")
     
     # -------------------------------------------------
-    # Step 3: Calculate settlement using depreciation engine
+    # Step 3: Guard checks before settlement calculation
     # -------------------------------------------------
+    
+    # Check 1: Policy must be active
+    if not policy.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Approval blocked: Policy is inactive."
+        )
+    
+    # Check 2: Incident date must be within policy period
+    if not (policy.policy_start_date <= claim.incident_date <= policy.policy_end_date):
+        raise HTTPException(
+            status_code=400,
+            detail="Approval blocked: Incident date outside policy coverage period."
+        )
+    
+    # Check 3: Count HIGH validation failures
+    high_failures = db.query(ValidationResult).filter(
+        ValidationResult.claim_id == claim_id,
+        ValidationResult.is_match == False,
+        ValidationResult.severity == ValidationSeverity.HIGH
+    ).count()
+    
+    if high_failures >= 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Approval blocked: Multiple HIGH validation failures. Escalation required."
+        )
+    
+    # -------------------------------------------------
+    # Step 4: Calculate settlement using depreciation engine
+    # -------------------------------------------------
+
     # Convert parts to dict format expected by settlement engine
     parts_dict = [{"type": p.type, "amount": p.amount} for p in request.parts]
     
@@ -681,8 +1037,9 @@ def approve_claim(
     )
     
     # -------------------------------------------------
-    # Step 4: Apply IDV cap enforcement
+    # Step 5: Apply IDV cap enforcement
     # -------------------------------------------------
+
     # IDV (Insured Declared Value) is the maximum liability for the policy
     # If calculated amount exceeds IDV, cap the payout at IDV amount
     # -------------------------------------------------
@@ -696,8 +1053,9 @@ def approve_claim(
         idv_capped = True
     
     # -------------------------------------------------
-    # Step 5: Determine ledger version number
+    # Step 6: Determine ledger version number
     # -------------------------------------------------
+
     # Count existing ledger entries for this claim to determine next version
     # Versioning enables audit trail for recalculations
     # -------------------------------------------------
@@ -707,8 +1065,9 @@ def approve_claim(
     version_number = existing_ledger_count + 1
     
     # -------------------------------------------------
-    # Step 6: Insert immutable SettlementLedger record
+    # Step 7: Insert immutable SettlementLedger record
     # -------------------------------------------------
+
     # Ledger provides immutable audit trail of settlement calculations
     # Each approval creates a new versioned record
     # -------------------------------------------------
@@ -726,8 +1085,9 @@ def approve_claim(
     db.add(ledger_entry)
     
     # -------------------------------------------------
-    # Step 7: Update claim snapshot fields
+    # Step 8: Update claim snapshot fields
     # -------------------------------------------------
+
     # Store final settlement values on claim for quick reference
     # These fields provide the current financial snapshot
     # -------------------------------------------------
@@ -737,14 +1097,16 @@ def approve_claim(
     claim.final_payable = final_payable
     
     # -------------------------------------------------
-    # Step 8: Update claim status
+    # Step 9: Update claim status
     # -------------------------------------------------
+
     old_status = claim.status
     claim.status = ClaimStatus.APPROVED
     
     # -------------------------------------------------
-    # Step 9: Create status history record
+    # Step 10: Create status history record
     # -------------------------------------------------
+
     status_history = ClaimStatusHistory(
         claim_id=claim.id,
         old_status=old_status,
@@ -753,16 +1115,18 @@ def approve_claim(
     db.add(status_history)
     
     # -------------------------------------------------
-    # Step 10: Commit transaction
+    # Step 11: Commit transaction
     # -------------------------------------------------
+
     # All changes (ledger, claim snapshot, status) committed atomically
     # -------------------------------------------------
     db.commit()
     db.refresh(claim)
     
     # -------------------------------------------------
-    # Step 11: Return settlement summary
+    # Step 12: Return settlement summary
     # -------------------------------------------------
+
     return {
         "message": "Claim approved successfully",
         "claim_id": claim.id,
@@ -810,10 +1174,10 @@ def reject_claim(
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
     
-    if claim.status != ClaimStatus.READY_FOR_REVIEW:
+    if claim.status not in [ClaimStatus.READY_FOR_REVIEW, ClaimStatus.UNDER_REVIEW, ClaimStatus.SUBMITTED, ClaimStatus.SURVEY_COMPLETED]:
         raise HTTPException(
             status_code=400,
-            detail="Claim must be in READY_FOR_REVIEW status to reject."
+            detail="Claim must be in a reviewable status to reject."
         )
     
     # -------------------------------------------------
@@ -847,4 +1211,248 @@ def reject_claim(
         "claim_number": claim.claim_number,
         "status": claim.status.value,
         "rejection_reason": request.rejection_reason
+    }
+
+
+# -------------------------------------------------
+# Manual Claim Escalation Endpoint
+# -------------------------------------------------
+@router.post("/{claim_id}/escalate", response_model=ClaimResponse)
+def escalate_claim(
+    claim_id: int,
+    request: EscalationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Manually escalate a claim to senior officer review.
+    
+    WORKFLOW:
+    1. Verify claim exists and is in READY_FOR_REVIEW status
+    2. Update claim status to ESCALATED
+    3. Store escalation metadata (officer_id, reason, timestamp)
+    4. Create status history record with explicit enum values
+    5. Commit transaction
+    
+    RULES:
+    - Only claims in READY_FOR_REVIEW status can be escalated
+    - Escalation is permanent and requires senior officer override to resolve
+    """
+    # -------------------------------------------------
+    # Step 1: Fetch and validate claim
+    # -------------------------------------------------
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status not in [ClaimStatus.READY_FOR_REVIEW, ClaimStatus.UNDER_REVIEW, ClaimStatus.SURVEY_COMPLETED]:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in a reviewable status to escalate."
+        )
+    
+    # -------------------------------------------------
+    # Step 2: Update claim status and escalation fields
+    # -------------------------------------------------
+    old_status = claim.status
+    claim.status = ClaimStatus.ESCALATED
+    claim.escalated_by = request.officer_id
+    claim.escalation_reason = request.reason
+    claim.escalated_at = datetime.now()
+    
+    # -------------------------------------------------
+    # Step 3: Create status history record with explicit enum values
+    # -------------------------------------------------
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=ClaimStatus.READY_FOR_REVIEW,
+        new_status=ClaimStatus.ESCALATED
+    )
+    db.add(status_history)
+    
+    # -------------------------------------------------
+    # Step 4: Commit transaction
+    # -------------------------------------------------
+    db.commit()
+    db.refresh(claim)
+    
+    # -------------------------------------------------
+    # Step 5: Return escalation summary
+    # -------------------------------------------------
+    return claim
+
+
+# -------------------------------------------------
+# Senior Officer Override Approval Endpoint
+# -------------------------------------------------
+@router.post("/{claim_id}/override-approve")
+def override_approve_claim(
+    claim_id: int,
+    request: OverrideApprovalRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Senior officer override approval for escalated claims.
+    
+    WORKFLOW:
+    1. Verify claim exists and is in ESCALATED status
+    2. Fetch linked policy for IDV cap enforcement
+    3. Guard checks (policy active, incident date within period)
+    4. Calculate settlement using depreciation engine
+    5. Apply IDV cap enforcement
+    6. Insert immutable SettlementLedger record
+    7. Update claim snapshot fields
+    8. Store override metadata (senior_officer_id, reason, timestamp)
+    9. Update claim status to APPROVED
+    10. Create status history record (ESCALATED -> APPROVED)
+    11. Commit transaction
+    
+    RULES:
+    - Only claims in ESCALATED status can be override-approved
+    - Policy must be active
+    - Incident date must be within policy period
+    - HIGH validation failure count is IGNORED (bypassed by senior officer)
+    """
+    # -------------------------------------------------
+    # Step 1: Fetch and validate claim
+    # -------------------------------------------------
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    
+    if claim.status != ClaimStatus.ESCALATED:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in ESCALATED status for override approval."
+        )
+    
+    # -------------------------------------------------
+    # Step 2: Fetch linked policy for IDV enforcement
+    # -------------------------------------------------
+    policy = db.query(Policy).filter(Policy.id == claim.policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=400, detail="Policy not found for claim")
+    
+    # -------------------------------------------------
+    # Step 3: Guard checks before settlement calculation
+    # -------------------------------------------------
+    
+    # Check 1: Policy must be active
+    if not policy.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="Approval blocked: Policy is inactive."
+        )
+    
+    # Check 2: Incident date must be within policy period
+    if not (policy.policy_start_date <= claim.incident_date <= policy.policy_end_date):
+        raise HTTPException(
+            status_code=400,
+            detail="Approval blocked: Incident date outside policy coverage period."
+        )
+    
+    # Note: HIGH validation failure count is intentionally NOT checked
+    # Senior officer has authority to override validation failures
+    
+    # -------------------------------------------------
+    # Step 4: Calculate settlement using depreciation engine
+    # -------------------------------------------------
+    # Convert parts to dict format expected by settlement engine
+    parts_dict = [{"type": p.type, "amount": p.amount} for p in request.parts]
+    
+    settlement = calculate_settlement(
+        parts=parts_dict,
+        vehicle_age_years=request.vehicle_age_years,
+        deductible=request.deductible_amount
+    )
+    
+    # -------------------------------------------------
+    # Step 5: Apply IDV cap enforcement
+    # -------------------------------------------------
+    calculated_payable = settlement.final_payable
+    idv_capped = False
+    final_payable = calculated_payable
+    
+    if calculated_payable > policy.idv_amount:
+        # IDV cap triggered: payout limited to policy maximum
+        final_payable = policy.idv_amount
+        idv_capped = True
+    
+    # -------------------------------------------------
+    # Step 6: Determine ledger version number
+    # -------------------------------------------------
+    existing_ledger_count = db.query(SettlementLedger).filter(
+        SettlementLedger.claim_id == claim_id
+    ).count()
+    version_number = existing_ledger_count + 1
+    
+    # -------------------------------------------------
+    # Step 7: Insert immutable SettlementLedger record
+    # -------------------------------------------------
+    ledger_entry = SettlementLedger(
+        claim_id=claim.id,
+        version_number=version_number,
+        estimated_amount=settlement.estimated_amount,
+        total_depreciation=settlement.total_depreciation,
+        deductible_amount=request.deductible_amount,
+        calculated_payable=calculated_payable,
+        idv_amount=policy.idv_amount,
+        idv_capped=idv_capped,
+        final_payable=final_payable
+    )
+    db.add(ledger_entry)
+    
+    # -------------------------------------------------
+    # Step 8: Update claim snapshot fields
+    # -------------------------------------------------
+    claim.estimated_amount = settlement.estimated_amount
+    claim.depreciation_amount = settlement.total_depreciation
+    claim.deductible_amount = request.deductible_amount
+    claim.final_payable = final_payable
+    
+    # -------------------------------------------------
+    # Step 9: Store override metadata
+    # -------------------------------------------------
+    claim.override_by = request.senior_officer_id
+    claim.override_reason = request.reason
+    claim.override_at = datetime.now()
+    
+    # -------------------------------------------------
+    # Step 10: Update claim status and create history
+    # -------------------------------------------------
+    old_status = claim.status
+    claim.status = ClaimStatus.APPROVED
+    
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=ClaimStatus.ESCALATED,
+        new_status=ClaimStatus.APPROVED
+    )
+    db.add(status_history)
+    
+    # -------------------------------------------------
+    # Step 11: Commit transaction
+    # -------------------------------------------------
+    db.commit()
+    db.refresh(claim)
+    
+    # -------------------------------------------------
+    # Step 12: Return settlement summary
+    # -------------------------------------------------
+    return {
+        "message": "Claim override-approved successfully by senior officer",
+        "claim_id": claim.id,
+        "claim_number": claim.claim_number,
+        "status": claim.status.value,
+        "override_by": claim.override_by,
+        "override_reason": claim.override_reason,
+        "settlement": {
+            "estimated_amount": settlement.estimated_amount,
+            "total_depreciation": settlement.total_depreciation,
+            "deductible_amount": request.deductible_amount,
+            "calculated_payable": calculated_payable,
+            "idv_amount": policy.idv_amount,
+            "idv_capped": idv_capped,
+            "final_payable": final_payable,
+            "ledger_version": version_number
+        }
     }

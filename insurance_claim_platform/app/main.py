@@ -23,7 +23,7 @@ app = FastAPI()
 # CORS Middleware Configuration
 # -------------------------------------------------
 # CORS (Cross-Origin Resource Sharing) is required to allow the React
-# frontend running on a different origin (http://localhost:3000) to
+# frontend running on a different origin (http://localhost:3000 or http://localhost:3001) to
 # communicate with this FastAPI backend (http://localhost:8000).
 #
 # Browsers enforce same-origin policy by default, blocking requests
@@ -31,7 +31,7 @@ app = FastAPI()
 # the browser to permit these cross-origin requests.
 #
 # CONFIGURATION USED:
-# - allow_origins: ["http://localhost:3000"] - Restricted to React dev server
+# - allow_origins: ["http://localhost:3000", "http://localhost:3001"] - Restricted to React dev servers
 # - allow_credentials: True - Allows cookies/auth headers in requests
 # - allow_methods: ["*"] - Permits all HTTP methods (GET, POST, PATCH, etc.)
 # - allow_headers: ["*"] - Permits all request headers
@@ -42,7 +42,7 @@ app = FastAPI()
 # -------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

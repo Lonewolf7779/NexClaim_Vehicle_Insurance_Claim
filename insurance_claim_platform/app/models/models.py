@@ -12,6 +12,7 @@ class Policy(Base):
     policy_number = Column(String, unique=True, nullable=False)
     policy_holder_name = Column(String, nullable=False)
     vehicle_number = Column(String, nullable=False)
+    vehicle_model = Column(String, nullable=True)
     policy_start_date = Column(DateTime, nullable=False)
     policy_end_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True)
@@ -24,6 +25,17 @@ class Policy(Base):
     # the vehicle's insured value.
     # -------------------------------------------------
     idv_amount = Column(Float, nullable=False)
+    
+    # -------------------------------------------------
+    # Customer Identity Fields (from documents)
+    # -------------------------------------------------
+    # These fields store customer identity information
+    # submitted during policy purchase
+    # -------------------------------------------------
+    aadhar_number = Column(String, nullable=True)
+    pan_number = Column(String, nullable=True)
+    driving_license_number = Column(String, nullable=True)
+    rc_number = Column(String, nullable=True)
 
 
 class Claim(Base):
@@ -49,7 +61,21 @@ class Claim(Base):
     deductible_amount = Column(Float, nullable=True)
     final_payable = Column(Float, nullable=True)
     
+    # -------------------------------------------------
+    # Escalation Fields
+    # -------------------------------------------------
+    # Track manual escalation and senior officer overrides
+    # for audit and compliance purposes.
+    # -------------------------------------------------
+    escalated_by = Column(String, nullable=True)
+    escalation_reason = Column(String, nullable=True)
+    escalated_at = Column(DateTime, nullable=True)
+    override_by = Column(String, nullable=True)
+    override_reason = Column(String, nullable=True)
+    override_at = Column(DateTime, nullable=True)
+    
     created_at = Column(DateTime, server_default=func.now())
+
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

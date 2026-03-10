@@ -1,58 +1,43 @@
-// -------------------------------------------------
-// Root Application Component
-// -------------------------------------------------
-// Sets up React Router for client-side navigation.
-// Defines two main routes:
-//   - /claims: List view of all claims (ClaimList component)
-//   - /claims/:id: Detail view for a specific claim (ClaimDetails component)
-// Uses BrowserRouter for clean URL handling.
-// -------------------------------------------------
-import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import ClaimList from './components/ClaimList'
-import ClaimDetails from './components/ClaimDetails'
-import CustomerClaimsPage from './components/CustomerClaimsPage'
-import CustomerClaimDetailPage from './components/CustomerClaimDetailPage'
-
+import React, { useState } from 'react'
 import './App.css'
 
+// Import page components
+import RoleSelector from './pages/RoleSelector'
+import OfficerDashboard from './pages/OfficerDashboard'
+import CustomerDashboard from './pages/CustomerDashboard'
+import SurveyorDashboard from './pages/SurveyorDashboard'
+import EscalationDashboard from './pages/EscalationDashboard'
+
+// -------------------------------------------------
+// Role-Based Insurance Claim Processing System
+// Main App Component
+// -------------------------------------------------
 function App() {
+  // Role management state
+  const [currentRole, setCurrentRole] = useState(null)
+
+  // Handle role switch
+  const handleSwitchRole = () => {
+    setCurrentRole(null)
+  }
+
+  // Render role selector if no role selected
+  if (!currentRole) {
+    return <RoleSelector onSelectRole={setCurrentRole} />
+  }
+
+  // Render appropriate dashboard based on role
   return (
-    <BrowserRouter>
-      <div className="app">
-        {/* Header with navigation */}
-        <header className="app-header">
-          <h1>Insurance Claim Verification - Officer Dashboard</h1>
-          <nav>
-            <a href="/claims">Officer View</a>
-            <a href="/my-claims">My Claims</a>
-          </nav>
-
-        </header>
-
-        {/* Main content area with route definitions */}
-        <main className="app-main">
-          <Routes>
-            {/* Redirect root to claims list */}
-            <Route path="/" element={<Navigate to="/claims" replace />} />
-            
-            {/* Claims list page */}
-            <Route path="/claims" element={<ClaimList />} />
-            
-            {/* Claim details page with ID parameter */}
-            <Route path="/claims/:id" element={<ClaimDetails />} />
-            
-            {/* Customer claim list page */}
-            <Route path="/my-claims" element={<CustomerClaimsPage />} />
-            
-            {/* Customer claim detail page */}
-            <Route path="/my-claims/:id" element={<CustomerClaimDetailPage />} />
-          </Routes>
-
-        </main>
-      </div>
-    </BrowserRouter>
+    <div className="app">
+      <main style={{ padding: '0 20px' }}>
+        {currentRole === 'customer' && <CustomerDashboard onSwitchRole={handleSwitchRole} />}
+        {currentRole === 'surveyor' && <SurveyorDashboard onSwitchRole={handleSwitchRole} />}
+        {currentRole === 'officer' && <OfficerDashboard onSwitchRole={handleSwitchRole} />}
+        {currentRole === 'escalation' && <EscalationDashboard onSwitchRole={handleSwitchRole} />}
+      </main>
+    </div>
   )
 }
 
 export default App
+

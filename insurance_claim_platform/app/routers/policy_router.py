@@ -33,10 +33,15 @@ def create_policy(policy: PolicyBase, db: Session = Depends(get_db)):
         policy_number=policy.policy_number,
         policy_holder_name=policy.policy_holder_name,
         vehicle_number=policy.vehicle_number,
+        vehicle_model=policy.vehicle_model,
         policy_start_date=policy.policy_start_date,
         policy_end_date=policy.policy_end_date,
         is_active=policy.is_active,
-        idv_amount=policy.idv_amount
+        idv_amount=policy.idv_amount,
+        aadhar_number=policy.aadhar_number,
+        pan_number=policy.pan_number,
+        driving_license_number=policy.driving_license_number,
+        rc_number=policy.rc_number
     )
 
 
@@ -66,6 +71,18 @@ def get_policy(policy_id: int, db: Session = Depends(get_db)):
     Returns 404 if policy not found.
     """
     policy = db.query(Policy).filter(Policy.id == policy_id).first()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return policy
+
+
+@router.get("/by-number/{policy_number}", response_model=PolicyResponse)
+def get_policy_by_number(policy_number: str, db: Session = Depends(get_db)):
+    """
+    Retrieve a policy by policy number.
+    Returns 404 if policy not found.
+    """
+    policy = db.query(Policy).filter(Policy.policy_number == policy_number).first()
     if not policy:
         raise HTTPException(status_code=404, detail="Policy not found")
     return policy
