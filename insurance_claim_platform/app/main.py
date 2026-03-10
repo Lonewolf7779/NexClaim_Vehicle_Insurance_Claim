@@ -1,5 +1,10 @@
-from fastapi import FastAPI
+import os
+import time
+
+from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from typing import List
 from app.routers import claim_router
 from app.routers import policy_router
 from app.db.base import Base
@@ -49,8 +54,19 @@ app.add_middleware(
 )
 
 
+# -------------------------------------------------
+# Create Inbound Directory for RPA File Drops
+# -------------------------------------------------
+INBOUND_DIR = r"D:\NexClaim_RPA\Inbound"
+os.makedirs(INBOUND_DIR, exist_ok=True)
+
 # Create tables automatically
 Base.metadata.create_all(bind=engine)
+
+# -------------------------------------------------
+# Serve uploaded files from Inbound directory
+# -------------------------------------------------
+app.mount("/rpa-data/Inbound", StaticFiles(directory=INBOUND_DIR), name="inbound-files")
 
 # Include claim routes
 app.include_router(claim_router.router)
@@ -63,3 +79,44 @@ app.include_router(policy_router.router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+# -------------------------------------------------
+# File Upload Endpoint
+# -------------------------------------------------
+@app.post("/upload/{claim_id}")
+def upload_file(
+    claim_id: int,
+    files: List[UploadFile] = File(...),
+    document_type: str = Query(default="INVOICE")
+):
+    """
+    Upload one or more document files for a claim.
+    Each file is saved as ClaimID_{id}_{document_type}.pdf
+    in the NexClaim_RPA Inbound directory.
+    """
+    safe_type = "".join(c for c in document_type if c.isalnum() or c == "_")
+    saved_files = []
+
+    for idx, file in enumerate(files):
+        # Reset file pointer to ensure full content is read
+        file.file.seek(0)
+        if len(files) == 1:
+            file_name = f"ClaimID_{claim_id}_{safe_type}.pdf"
+        else:
+            file_name = f"ClaimID_{claim_id}_{safe_type}_{idx + 1}.pdf"
+        file_path = os.path.join(INBOUND_DIR, file_name)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        saved_files.append({"file_name": file_name, "file_path": file_path})
+
+    # Cooldown: ensure Windows completes the write before
+    # any downstream RPA bot picks up the file
+    time.sleep(2)
+
+    return {
+        "message": f"{len(saved_files)} file(s) uploaded successfully",
+        "files": saved_files
+    }

@@ -13,17 +13,26 @@ import EscalationDashboard from './pages/EscalationDashboard'
 // Main App Component
 // -------------------------------------------------
 function App() {
-  // Role management state
-  const [currentRole, setCurrentRole] = useState(null)
+  // Role management state — restore from localStorage on load
+  const [currentRole, setCurrentRole] = useState(() => {
+    return localStorage.getItem('userRole') || null
+  })
 
-  // Handle role switch
+  // Handle role selection — persist to localStorage
+  const handleSelectRole = (role) => {
+    localStorage.setItem('userRole', role)
+    setCurrentRole(role)
+  }
+
+  // Handle role switch — clear from localStorage
   const handleSwitchRole = () => {
+    localStorage.removeItem('userRole')
     setCurrentRole(null)
   }
 
   // Render role selector if no role selected
   if (!currentRole) {
-    return <RoleSelector onSelectRole={setCurrentRole} />
+    return <RoleSelector onSelectRole={handleSelectRole} />
   }
 
   // Render appropriate dashboard based on role

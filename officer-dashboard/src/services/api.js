@@ -68,6 +68,22 @@ export const claimService = {
   triggerProcessing: (id) => api.post(`/claims/${id}/trigger-processing`),
 
   /**
+   * Upload a file for a claim with a specific document type suffix
+   * POST /upload/{id}?document_type={type}
+   * @param {number} id - Claim ID
+   * @param {File} file - File object to upload
+   * @param {string} documentType - Document type suffix (e.g. INVOICE, RC, AADHAR)
+   * @returns {Promise} Upload result with file_path
+   */
+  uploadFile: (id, file, documentType) => {
+    const formData = new FormData()
+    formData.append('files', file)
+    return api.post(`/upload/${id}?document_type=${encodeURIComponent(documentType)}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
+  /**
    * Upload document for a claim
    * POST /claims/{id}/documents
    * @param {number} id - Claim ID
@@ -95,6 +111,14 @@ export const claimService = {
    * @returns {Promise} Validation summary
    */
   runValidation: (id) => api.post(`/claims/${id}/run-validation`),
+
+  /**
+   * Fetch extracted documents and their fields for a claim
+   * GET /claims/{id}/documents
+   * @param {number} id - Claim ID
+   * @returns {Promise} Array of document objects with fields
+   */
+  getDocuments: (id) => api.get(`/claims/${id}/documents`),
 
   /**
    * Fetch validation results for a specific claim

@@ -1456,3 +1456,47 @@ def override_approve_claim(
             "ledger_version": version_number
         }
     }
+
+
+# -------------------------------------------------
+# Get Documents for a Claim
+# -------------------------------------------------
+@router.get("/{claim_id}/documents")
+def get_claim_documents(claim_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve all extracted documents and their fields for a claim.
+    Returns a list of documents, each containing its type,
+    extraction timestamp, and all extracted fields.
+    """
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    documents = (
+        db.query(ExtractedDocument)
+        .filter(ExtractedDocument.claim_id == claim_id)
+        .all()
+    )
+
+    result = []
+    for doc in documents:
+        fields = (
+            db.query(ExtractedField)
+            .filter(ExtractedField.document_id == doc.id)
+            .all()
+        )
+        result.append({
+            "id": doc.id,
+            "document_type": doc.document_type.value,
+            "extracted_at": doc.extracted_at.isoformat() if doc.extracted_at else None,
+            "fields": [
+                {
+                    "field_name": f.field_name,
+                    "field_value": f.field_value,
+                    "confidence_score": f.confidence_score
+                }
+                for f in fields
+            ]
+        })
+
+    return result
