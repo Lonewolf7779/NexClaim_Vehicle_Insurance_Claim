@@ -15,3 +15,6 @@ class DocumentType(Enum):
     """
     CLAIM_FORM = "CLAIM_FORM"
     REPAIR_INVOICE = "REPAIR_INVOICE"
+    INVOICE = "INVOICE"
+    RC_BOOK = "RC_BOOK"
+    DRIVING_LICENSE = "DRIVING_LICENSE"

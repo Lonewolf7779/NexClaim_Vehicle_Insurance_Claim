@@ -1,14 +1,18 @@
 import os
 import time
 
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from typing import List
+from sqlalchemy.orm import Session
 from app.routers import claim_router
 from app.routers import policy_router
 from app.db.base import Base
 from app.db.session import engine
+from app.db.deps import get_db
+from app.models.extracted_document import ExtractedDocument
+from app.models.document_type import DocumentType
 
 # -------------------------------------------------
 # Model Imports for Table Creation
@@ -88,7 +92,8 @@ def health_check():
 def upload_file(
     claim_id: int,
     files: List[UploadFile] = File(...),
-    document_type: str = Query(default="INVOICE")
+    document_type: str = Query(default="INVOICE"),
+    db: Session = Depends(get_db)
 ):
     """
     Upload one or more document files for a claim.
@@ -111,6 +116,16 @@ def upload_file(
             buffer.write(file.file.read())
 
         saved_files.append({"file_name": file_name, "file_path": file_path})
+
+        # Register document in the database instantly
+        try:
+            doc_enum = DocumentType(document_type.upper())
+        except ValueError:
+            doc_enum = DocumentType.INVOICE
+        
+        db_doc = ExtractedDocument(claim_id=claim_id, document_type=doc_enum)
+        db.add(db_doc)
+        db.commit()
 
     # Cooldown: ensure Windows completes the write before
     # any downstream RPA bot picks up the file

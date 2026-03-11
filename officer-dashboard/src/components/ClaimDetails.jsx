@@ -35,6 +35,7 @@ function ClaimDetails() {
   const [claim, setClaim] = useState(null)
   const [validationResults, setValidationResults] = useState([])
   const [riskData, setRiskData] = useState(null)
+  const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -78,6 +79,15 @@ function ClaimDetails() {
       } catch (err) {
         // Risk evaluation may not be available - this is OK
         setRiskData(null)
+      }
+
+      // Fetch documents
+      try {
+        const documentsResponse = await claimService.getDocuments(id)
+        setDocuments(documentsResponse.data)
+      } catch (err) {
+        setDocuments([])
+        console.error('Doc Fetch Error:', err)
       }
     } catch (err) {
       setError('Failed to load claim details. Please try again.')
@@ -282,6 +292,48 @@ function ClaimDetails() {
             )}
           </div>
         )}
+      </section>
+
+      {/* Section A: All Uploaded Documents */}
+      <section className="all-documents-section">
+        <h3>All Uploaded Documents</h3>
+        {documents.length > 0 ? (
+          documents.map((doc, index) => (
+            <div key={index} className="document-item">
+              <p><strong>Document Type:</strong> {doc.document_type}</p>
+              <p><strong>Uploaded At:</strong> {new Date(doc.extracted_at).toLocaleString()}</p>
+            </div>
+          ))
+        ) : (
+          <p>No documents uploaded</p>
+        )}
+      </section>
+
+      {/* Section B: DA Extraction Data */}
+      <section className="extraction-section">
+        <h3>DA Extraction Data</h3>
+        {(() => {
+          const extractedDocs = documents.filter(doc => doc.fields && doc.fields.length > 0)
+          return extractedDocs.length > 0 ? (
+            extractedDocs.map((doc, index) => (
+              <div key={index} className="extracted-document-item">
+                <p><strong>Document Type:</strong> {doc.document_type}</p>
+                <div className="extracted-fields">
+                  <h4>Extracted Fields:</h4>
+                  {doc.fields.map((field, fieldIndex) => (
+                    <div key={fieldIndex} className="field-item">
+                      <span><strong>Field Name:</strong> {field.field_name}</span>
+                      <span><strong>Field Value:</strong> {field.field_value}</span>
+                      <span><strong>Confidence Score:</strong> {field.confidence_score}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p>No extraction data available</p>
+          )
+        })()}
       </section>
 
       {/* Validation Results Section */}

@@ -30,8 +30,12 @@ function CustomerClaimDetailPage() {
   // -------------------------------------------------
   const [claim, setClaim] = useState(null)
   const [validationResults, setValidationResults] = useState([])
+  const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [docType, setDocType] = useState('INVOICE')
+  const [uploading, setUploading] = useState(false)
 
   // -------------------------------------------------
   // Data Fetching Effect
@@ -58,6 +62,16 @@ function CustomerClaimDetailPage() {
         setValidationResults(validationResponse.data)
       } catch (err) {
         setValidationResults([])
+      }
+
+      // Fetch documents
+      try {
+        const documentsResponse = await claimService.getDocuments(id)
+        const validDocs = documentsResponse.data.filter(doc => doc.fields && doc.fields.length > 0)
+        setDocuments(validDocs)
+      } catch (err) {
+        setDocuments([])
+        console.error('Doc Fetch Error:', err)
       }
     } catch (err) {
       setError('Failed to load claim details. Please try again.')
@@ -114,6 +128,30 @@ function CustomerClaimDetailPage() {
     if (currentStatus === stepKey) return 'current'
     if (stepIndex < currentIndex) return 'completed'
     return 'pending'
+  }
+
+  /**
+   * Handle file upload for additional documents
+   */
+  const handleFileUpload = async (e) => {
+    e.preventDefault()
+    if (!selectedFile) {
+      alert('Please select a file to upload')
+      return
+    }
+
+    try {
+      setUploading(true)
+      await claimService.uploadFile(id, selectedFile, docType)
+      alert('File uploaded successfully!')
+      setSelectedFile(null)
+      // Refresh the entire claim data including documents
+      await fetchClaimData()
+    } catch (err) {
+      alert(`Failed to upload file: ${err.message}`)
+    } finally {
+      setUploading(false)
+    }
   }
 
   // -------------------------------------------------
@@ -216,6 +254,59 @@ function CustomerClaimDetailPage() {
             <span>{claim.payment_status || 'Pending'}</span>
           </div>
         </div>
+      </section>
+
+      {/* Upload Additional Document Section */}
+      <section className="upload-section">
+        <h3>Upload Additional Document</h3>
+        <form onSubmit={handleFileUpload} className="upload-form">
+          <div className="upload-field">
+            <label>Document Type:</label>
+            <select value={docType} onChange={(e) => setDocType(e.target.value)}>
+              <option value="INVOICE">INVOICE</option>
+              <option value="CLAIM_FORM">CLAIM_FORM</option>
+              <option value="RC_BOOK">RC_BOOK</option>
+              <option value="DRIVING_LICENSE">DRIVING_LICENSE</option>
+            </select>
+          </div>
+          <div className="upload-field">
+            <label>Select File:</label>
+            <input 
+              type="file" 
+              onChange={(e) => setSelectedFile(e.target.files[0])} 
+            />
+          </div>
+          <button type="submit" disabled={uploading} className="upload-btn">
+            {uploading ? 'Uploading...' : 'Upload'}
+          </button>
+        </form>
+      </section>
+
+      {/* Documents Section */}
+      <section className="documents-section">
+        <h3>Submitted Documents</h3>
+        {documents.length > 0 ? (
+          documents.map((doc, index) => (
+            <div key={index} className="document-item">
+              <p><strong>Document Type:</strong> {doc.document_type}</p>
+              <p><strong>Extracted At:</strong> {new Date(doc.extracted_at).toLocaleString()}</p>
+              {doc.fields && doc.fields.length > 0 && (
+                <div className="document-fields">
+                  <h4>Fields:</h4>
+                  {doc.fields.map((field, fieldIndex) => (
+                    <div key={fieldIndex} className="field-item">
+                      <span><strong>Field Name:</strong> {field.field_name}</span>
+                      <span><strong>Field Value:</strong> {field.field_value}</span>
+                      <span><strong>Confidence Score:</strong> {field.confidence_score}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <p>No documents available</p>
+        )}
       </section>
 
       {/* Timeline Section */}
