@@ -1,5 +1,8 @@
 import os
+import sys
+import subprocess
 import time
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,31 +26,39 @@ from app.models.document_type import DocumentType
 # claim settlement calculations.
 # -------------------------------------------------
 from app.models.settlement_ledger import SettlementLedger
+from app.models.survey_report import SurveyReport
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    watcher_proc = None
+    try:
+        # Startup: Start policy watcher safely
+        watcher_path = os.path.join(os.getcwd(), '..', 'policy_watcher.py')
+        watcher_proc = subprocess.Popen([sys.executable, watcher_path], shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+        print(f"Started policy watcher: {watcher_path} (PID: {watcher_proc.pid})")
+    except Exception as e:
+        print(f"Failed to start watcher: {e}")
+    
+    yield
+    
+    # Shutdown: Terminate watcher safely
+    if watcher_proc:
+        watcher_proc.terminate()
+        try:
+            watcher_proc.wait(timeout=5)
+            print("Terminated policy watcher")
+        except subprocess.TimeoutExpired:
+            watcher_proc.kill()
+            print("Killed policy watcher")
 
+# Create tables automatically (before app)
+Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+# App creation at end
+app = FastAPI(lifespan=lifespan)
 
 # -------------------------------------------------
 # CORS Middleware Configuration
-# -------------------------------------------------
-# CORS (Cross-Origin Resource Sharing) is required to allow the React
-# frontend running on a different origin (http://localhost:3000 or http://localhost:3001) to
-# communicate with this FastAPI backend (http://localhost:8000).
-#
-# Browsers enforce same-origin policy by default, blocking requests
-# from different ports, protocols, or domains. CORS headers tell
-# the browser to permit these cross-origin requests.
-#
-# CONFIGURATION USED:
-# - allow_origins: ["http://localhost:3000", "http://localhost:3001"] - Restricted to React dev servers
-# - allow_credentials: True - Allows cookies/auth headers in requests
-# - allow_methods: ["*"] - Permits all HTTP methods (GET, POST, PATCH, etc.)
-# - allow_headers: ["*"] - Permits all request headers
-#
-# NOTE: This configuration is for DEVELOPMENT ENVIRONMENT ONLY.
-# Production deployments should specify exact origins and limit
-# methods/headers to only those required for security.
 # -------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -57,15 +68,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # -------------------------------------------------
 # Create Inbound Directory for RPA File Drops
 # -------------------------------------------------
 INBOUND_DIR = r"D:\NexClaim_RPA\Inbound"
 os.makedirs(INBOUND_DIR, exist_ok=True)
-
-# Create tables automatically
-Base.metadata.create_all(bind=engine)
 
 # -------------------------------------------------
 # Serve uploaded files from Inbound directory
@@ -75,15 +82,12 @@ app.mount("/rpa-data/Inbound", StaticFiles(directory=INBOUND_DIR), name="inbound
 # Include claim routes
 app.include_router(claim_router.router)
 
-# Include policy routes
+# Include policy routes - GET /policies/ available
 app.include_router(policy_router.router)
-
-
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
 
 # -------------------------------------------------
 # File Upload Endpoint
@@ -135,3 +139,4 @@ def upload_file(
         "message": f"{len(saved_files)} file(s) uploaded successfully",
         "files": saved_files
     }
+

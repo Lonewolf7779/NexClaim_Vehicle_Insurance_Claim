@@ -84,7 +84,8 @@ function ClaimDetails() {
       // Fetch documents
       try {
         const documentsResponse = await claimService.getDocuments(id)
-        setDocuments(documentsResponse.data)
+        const validDocs = documentsResponse.data.filter(doc => doc.fields && doc.fields.length > 0)
+        setDocuments(validDocs)
       } catch (err) {
         setDocuments([])
         console.error('Doc Fetch Error:', err)

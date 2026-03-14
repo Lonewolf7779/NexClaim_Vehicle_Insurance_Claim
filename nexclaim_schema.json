@@ -1,0 +1,143 @@
+{
+  "models": [
+    {
+      "model_name": "Policy",
+      "table_name": "policies",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "policy_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "policy_holder_name", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "vehicle_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "vehicle_model", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "policy_start_date", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "policy_end_date", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "is_active", "type": "Boolean", "primary_key": false, "foreign_key": null, "nullable": true, "default": true},
+        {"name": "idv_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "aadhar_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "pan_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "driving_license_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "rc_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true}
+      ]
+    },
+    {
+      "model_name": "Claim",
+      "table_name": "claims",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "claim_number", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "policy_id", "type": "Integer", "primary_key": false, "foreign_key": "policies.id", "nullable": false},
+        {"name": "incident_date", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "description", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "status", "type": "Enum(ClaimStatus)", "primary_key": false, "foreign_key": null, "nullable": false, "default": "SUBMITTED"},
+        {"name": "estimated_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "depreciation_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "deductible_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "final_payable", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "escalated_by", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "escalation_reason", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "escalated_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "override_by", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "override_reason", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "override_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "created_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"},
+        {"name": "updated_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"}
+      ]
+    },
+    {
+      "model_name": "ClaimStatusHistory",
+      "table_name": "claim_status_history",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "claim_id", "type": "Integer", "primary_key": false, "foreign_key": "claims.id", "nullable": false},
+        {"name": "old_status", "type": "Enum(ClaimStatus)", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "new_status", "type": "Enum(ClaimStatus)", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "changed_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"}
+      ]
+    },
+    {
+      "model_name": "ExtractedDocument",
+      "table_name": "extracted_documents",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "claim_id", "type": "Integer", "primary_key": false, "foreign_key": "claims.id", "nullable": false},
+        {"name": "document_type", "type": "Enum(DocumentType)", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "extracted_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"}
+      ]
+    },
+    {
+      "model_name": "ExtractedField",
+      "table_name": "extracted_fields",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "document_id", "type": "Integer", "primary_key": false, "foreign_key": "extracted_documents.id", "nullable": false},
+        {"name": "field_name", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "field_value", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "confidence_score", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": true}
+      ]
+    },
+    {
+      "model_name": "ValidationResult",
+      "table_name": "validation_results",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "claim_id", "type": "Integer", "primary_key": false, "foreign_key": "claims.id", "nullable": false},
+        {"name": "rule_name", "type": "String", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "expected_value", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "actual_value", "type": "String", "primary_key": false, "foreign_key": null, "nullable": true},
+        {"name": "is_match", "type": "Boolean", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "severity", "type": "Enum(ValidationSeverity)", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "created_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"}
+      ]
+    },
+    {
+      "model_name": "SettlementLedger",
+      "table_name": "settlement_ledgers",
+      "fields": [
+        {"name": "id", "type": "Integer", "primary_key": true, "foreign_key": null, "nullable": false},
+        {"name": "claim_id", "type": "Integer", "primary_key": false, "foreign_key": "claims.id", "nullable": false},
+        {"name": "version_number", "type": "Integer", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "estimated_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "total_depreciation", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "deductible_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "calculated_payable", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "idv_amount", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "idv_capped", "type": "Boolean", "primary_key": false, "foreign_key": null, "nullable": true, "default": false},
+        {"name": "final_payable", "type": "Float", "primary_key": false, "foreign_key": null, "nullable": false},
+        {"name": "created_at", "type": "DateTime", "primary_key": false, "foreign_key": null, "nullable": true, "default": "server_default"}
+      ]
+    }
+  ],
+  "relationships": [
+    {"from": "Policy", "to": "Claim", "type": "one-to-many"},
+    {"from": "Claim", "to": "ClaimStatusHistory", "type": "one-to-many"},
+    {"from": "Claim", "to": "ExtractedDocument", "type": "one-to-many"},
+    {"from": "Claim", "to": "ValidationResult", "type": "one-to-many"},
+    {"from": "Claim", "to": "SettlementLedger", "type": "one-to-many"},
+    {"from": "ExtractedDocument", "to": "ExtractedField", "type": "one-to-many"}
+  ],
+  "enums": [
+    {
+      "name": "ClaimStatus",
+      "values": ["SUBMITTED", "UNDER_REVIEW", "DOCUMENT_REQUIRED", "SURVEY_ASSIGNED", "SURVEY_COMPLETED", "UNDER_INVESTIGATION", "PROCESSING", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "ESCALATED", "REPAIR_IN_PROGRESS", "PAYMENT_PROCESSING", "PAID", "CLOSED"]
+    },
+    {
+      "name": "DocumentType",
+      "values": ["CLAIM_FORM", "REPAIR_INVOICE"]
+    },
+    {
+      "name": "ValidationSeverity",
+      "values": ["LOW", "MEDIUM", "HIGH"]
+    }
+  ],
+  "actors": [],
+  "core_entities": [
+    {"name": "Policy", "description": "Insurance policy with vehicle details, IDV, and customer identity fields"},
+    {"name": "Claim", "description": "Insurance claim linked to a policy with status tracking and settlement fields"},
+    {"name": "ClaimStatusHistory", "description": "Audit trail of status changes for each claim"},
+    {"name": "ExtractedDocument", "description": "Documents extracted for a claim (CLAIM_FORM, REPAIR_INVOICE)"},
+    {"name": "ExtractedField", "description": "Individual fields extracted from documents with confidence scores"},
+    {"name": "ValidationResult", "description": "Validation rule results with severity classification"},
+    {"name": "SettlementLedger", "description": "Immutable settlement calculation records with version control"}
+  ]
+}
+

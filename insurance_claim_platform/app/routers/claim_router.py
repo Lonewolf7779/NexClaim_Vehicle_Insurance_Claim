@@ -6,13 +6,14 @@ Handles all claim-related API endpoints including
 claim creation, retrieval, and status updates.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from datetime import datetime
 
 from app.db.deps import get_db
 from app.models.models import Claim, ClaimStatusHistory, Policy
-from app.schemas.claim import ClaimCreate, ClaimResponse, ClaimUpdateStatus, EscalationRequest, OverrideApprovalRequest, RejectionRequest
+from app.schemas.claim import ClaimCreate, ClaimResponse, ClaimUpdateStatus, EscalationRequest, OverrideApprovalRequest, RejectionRequest, SurveyReportResponse, SurveyReportSubmitRequest, SurveyReinspectionRequest
 
 
 from app.models.claim_status import ClaimStatus
@@ -23,6 +24,7 @@ from app.models.validation_result import ValidationResult
 from app.models.validation_severity import ValidationSeverity
 from app.services.settlement_engine import calculate_settlement
 from app.models.settlement_ledger import SettlementLedger
+from app.models.survey_report import SurveyReport
 
 from pydantic import BaseModel
 from typing import Dict
@@ -38,11 +40,42 @@ from typing import List
 router = APIRouter(prefix="/claims", tags=["Claims"])
 
 
+def get_latest_survey_report(db: Session, claim_id: int):
+    try:
+        return (
+            db.query(SurveyReport)
+            .filter(SurveyReport.claim_id == claim_id)
+            .order_by(SurveyReport.version_number.desc())
+            .first()
+        )
+    except OperationalError:
+        return None
+
+
+def get_next_survey_report_version(db: Session, claim_id: int) -> int:
+    latest_report = get_latest_survey_report(db, claim_id)
+    return 1 if latest_report is None else latest_report.version_number + 1
+
+
+def serialize_claim(db: Session, claim: Claim) -> dict:
+    claim_data = ClaimResponse.model_validate(claim, from_attributes=True).model_dump()
+    latest_report = get_latest_survey_report(db, claim.id)
+    claim_data["latest_survey_report"] = (
+        SurveyReportResponse.model_validate(latest_report, from_attributes=True).model_dump()
+        if latest_report else None
+    )
+    try:
+        claim_data["survey_report_count"] = db.query(SurveyReport).filter(SurveyReport.claim_id == claim.id).count()
+    except OperationalError:
+        claim_data["survey_report_count"] = 0
+    return claim_data
+
+
 # -------------------------------------------------
 # Claim Creation
 # -------------------------------------------------
 @router.post("/", response_model=ClaimResponse)
-def create_claim(claim: ClaimCreate, db: Session = Depends(get_db)):
+def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(get_db)):
     """
     Create a new claim with generated claim number.
     Default status is set to SUBMITTED.
@@ -57,10 +90,9 @@ def create_claim(claim: ClaimCreate, db: Session = Depends(get_db)):
     ).first()
     
     if existing_active_claim:
-        raise HTTPException(
-            status_code=400,
-            detail="Active claim already exists for this policy."
-        )
+        # Keep one-active-claim rule, but return current active claim so UI can continue gracefully.
+        response.headers["X-Existing-Claim"] = "true"
+        return serialize_claim(db, existing_active_claim)
     
     claim_number = f"CLM-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
@@ -77,18 +109,23 @@ def create_claim(claim: ClaimCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_claim)
 
-    return db_claim
+    response.headers["X-Existing-Claim"] = "false"
+    return serialize_claim(db, db_claim)
 
 
 # -------------------------------------------------
 # Claim Retrieval
 # -------------------------------------------------
 @router.get("/", response_model=list[ClaimResponse])
-def get_claims(db: Session = Depends(get_db)):
+def get_claims(status: Optional[ClaimStatus] = Query(default=None), db: Session = Depends(get_db)):
     """
     Retrieve all claims from the database.
     """
-    return db.query(Claim).all()
+    query = db.query(Claim)
+    if status is not None:
+        query = query.filter(Claim.status == status)
+    claims = query.order_by(Claim.updated_at.desc(), Claim.created_at.desc()).all()
+    return [serialize_claim(db, claim) for claim in claims]
 
 
 @router.get("/{claim_id}", response_model=ClaimResponse)
@@ -100,7 +137,25 @@ def get_claim(claim_id: int, db: Session = Depends(get_db)):
     claim = db.query(Claim).filter(Claim.id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
-    return claim
+    return serialize_claim(db, claim)
+
+
+@router.get("/{claim_id}/survey-reports", response_model=list[SurveyReportResponse])
+def get_claim_survey_reports(claim_id: int, db: Session = Depends(get_db)):
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    try:
+        reports = (
+            db.query(SurveyReport)
+            .filter(SurveyReport.claim_id == claim_id)
+            .order_by(SurveyReport.version_number.desc())
+            .all()
+        )
+    except OperationalError:
+        reports = []
+    return reports
 
 
 # -------------------------------------------------
@@ -764,6 +819,16 @@ def assign_surveyor(
     
     old_status = claim.status
     claim.status = ClaimStatus.SURVEY_ASSIGNED
+
+    survey_report = SurveyReport(
+        claim_id=claim.id,
+        version_number=get_next_survey_report_version(db, claim.id),
+        surveyor_id=request.surveyor_id,
+        surveyor_name=request.surveyor_name,
+        assignment_notes=request.notes,
+        assigned_at=datetime.utcnow()
+    )
+    db.add(survey_report)
     
     status_history = ClaimStatusHistory(
         claim_id=claim.id,
@@ -773,13 +838,8 @@ def assign_surveyor(
     db.add(status_history)
     db.commit()
     db.refresh(claim)
-    
-    return {
-        "message": "Surveyor assigned",
-        "surveyor_id": request.surveyor_id,
-        "surveyor_name": request.surveyor_name,
-        "claim_id": claim.id
-    }
+
+    return serialize_claim(db, claim)
 
 
 # -------------------------------------------------
@@ -788,6 +848,7 @@ def assign_surveyor(
 @router.post("/{claim_id}/survey-complete", response_model=ClaimResponse)
 def survey_complete(
     claim_id: int,
+    request: SurveyReportSubmitRequest,
     db: Session = Depends(get_db)
 ):
     """
@@ -803,6 +864,36 @@ def survey_complete(
             status_code=400,
             detail="Claim must be in SURVEY_ASSIGNED status."
         )
+
+    survey_report = (
+        db.query(SurveyReport)
+        .filter(
+            SurveyReport.claim_id == claim.id,
+            SurveyReport.submitted_at.is_(None)
+        )
+        .order_by(SurveyReport.version_number.desc())
+        .first()
+    )
+
+    if survey_report is None:
+        survey_report = SurveyReport(
+            claim_id=claim.id,
+            version_number=get_next_survey_report_version(db, claim.id),
+            surveyor_id=request.surveyor_id,
+            surveyor_name=request.surveyor_name,
+            assigned_at=datetime.utcnow()
+        )
+        db.add(survey_report)
+
+    survey_report.surveyor_id = request.surveyor_id
+    if request.surveyor_name:
+        survey_report.surveyor_name = request.surveyor_name
+    survey_report.damage_description = request.damage_description
+    survey_report.vehicle_condition = request.vehicle_condition
+    survey_report.parts_damaged = request.parts_damaged
+    survey_report.estimated_repair_cost = request.estimated_repair_cost
+    survey_report.recommendation = request.recommendation
+    survey_report.submitted_at = datetime.utcnow()
     
     old_status = claim.status
     claim.status = ClaimStatus.SURVEY_COMPLETED
@@ -815,8 +906,54 @@ def survey_complete(
     db.add(status_history)
     db.commit()
     db.refresh(claim)
-    
-    return claim
+
+    return serialize_claim(db, claim)
+
+
+@router.post("/{claim_id}/reopen-survey", response_model=ClaimResponse)
+def reopen_survey(
+    claim_id: int,
+    request: SurveyReinspectionRequest,
+    db: Session = Depends(get_db)
+):
+    claim = db.query(Claim).filter(Claim.id == claim_id).first()
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+
+    if claim.status != ClaimStatus.SURVEY_COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail="Claim must be in SURVEY_COMPLETED status to request reinspection."
+        )
+
+    previous_report = get_latest_survey_report(db, claim.id)
+    if previous_report is not None:
+        previous_report.officer_review_notes = request.reason
+
+    next_report = SurveyReport(
+        claim_id=claim.id,
+        version_number=get_next_survey_report_version(db, claim.id),
+        surveyor_id=request.surveyor_id,
+        surveyor_name=request.surveyor_name,
+        assignment_notes=request.reason,
+        assigned_at=datetime.utcnow(),
+        officer_review_notes=request.reason
+    )
+    db.add(next_report)
+
+    old_status = claim.status
+    claim.status = ClaimStatus.SURVEY_ASSIGNED
+
+    status_history = ClaimStatusHistory(
+        claim_id=claim.id,
+        old_status=old_status,
+        new_status=ClaimStatus.SURVEY_ASSIGNED
+    )
+    db.add(status_history)
+    db.commit()
+    db.refresh(claim)
+
+    return serialize_claim(db, claim)
 
 
 # -------------------------------------------------

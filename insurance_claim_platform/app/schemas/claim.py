@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from app.models.claim_status import ClaimStatus
 
 
@@ -10,6 +10,43 @@ class ClaimCreate(BaseModel):
     policy_id: int
     incident_date: datetime
     description: str
+
+
+class SurveyReportResponse(BaseModel):
+    id: int
+    claim_id: int
+    version_number: int
+    surveyor_id: str
+    surveyor_name: Optional[str] = None
+    assignment_notes: Optional[str] = None
+    damage_description: Optional[str] = None
+    vehicle_condition: Optional[str] = None
+    parts_damaged: Optional[str] = None
+    estimated_repair_cost: Optional[float] = None
+    recommendation: Optional[str] = None
+    officer_review_notes: Optional[str] = None
+    assigned_at: datetime
+    submitted_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SurveyReportSubmitRequest(BaseModel):
+    surveyor_id: str
+    surveyor_name: Optional[str] = None
+    damage_description: str
+    vehicle_condition: str
+    parts_damaged: Optional[str] = None
+    estimated_repair_cost: float
+    recommendation: str
+
+
+class SurveyReinspectionRequest(BaseModel):
+    surveyor_id: str
+    surveyor_name: str
+    reason: str
 
 
 class ClaimResponse(BaseModel):
@@ -28,9 +65,10 @@ class ClaimResponse(BaseModel):
     depreciation_amount: Optional[float] = None
     deductible_amount: Optional[float] = None
     final_payable: Optional[float] = None
+    latest_survey_report: Optional[SurveyReportResponse] = None
+    survey_report_count: int = 0
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 

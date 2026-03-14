@@ -1,0 +1,27 @@
+# --- Python & Environment ---
+venv/
+env/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Node/Frontend (if applicable) ---
+node_modules/
+dist/
+build/
+
+# --- Sensitive Info (CRITICAL) ---
+.env
+auth.json
+secrets.txt
+
+# --- Databases & OS ---
+*.db
+*.sqlite3
+.DS_Store
+Thumbs.db
+
+# --- Project Specific ---
+# We keep the code, but ignore local path references if they are logs
+*.log

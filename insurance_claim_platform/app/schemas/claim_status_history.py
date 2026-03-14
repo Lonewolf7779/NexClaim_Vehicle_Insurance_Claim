@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from app.models.claim_status import ClaimStatus
 
 
@@ -10,5 +10,4 @@ class ClaimStatusHistoryResponse(BaseModel):
     new_status: ClaimStatus
     changed_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)

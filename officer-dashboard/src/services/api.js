@@ -193,6 +193,14 @@ export const claimService = {
   getSurveyClaims: () => api.get('/claims?status=SURVEY_ASSIGNED'),
 
   /**
+   * Fetch survey report history for a claim
+   * GET /claims/{id}/survey-reports
+   * @param {number} id - Claim ID
+   * @returns {Promise} Array of survey report versions
+   */
+  getSurveyReports: (id) => api.get(`/claims/${id}/survey-reports`),
+
+  /**
    * Submit survey report and complete the survey
    * POST /claims/{id}/survey-complete
    * @param {number} id - Claim ID
@@ -209,6 +217,15 @@ export const claimService = {
    * @returns {Promise} Claim with status SURVEY_ASSIGNED
    */
   assignSurveyor: (id, data) => api.post(`/claims/${id}/assign-surveyor`, data),
+
+  /**
+   * Reopen survey for reinspection
+   * POST /claims/{id}/reopen-survey
+   * @param {number} id - Claim ID
+   * @param {Object} data - Reinspection assignment and reason
+   * @returns {Promise} Updated claim with status SURVEY_ASSIGNED
+   */
+  reopenSurvey: (id, data) => api.post(`/claims/${id}/reopen-survey`, data),
 
   // ================================================
   // Officer Workflow API Methods
