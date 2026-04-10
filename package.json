@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "lucide-react": "^1.7.0"
+  }
+}

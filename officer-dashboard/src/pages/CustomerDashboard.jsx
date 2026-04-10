@@ -1,20 +1,345 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { claimService, policyService } from '../services/api'
+import gsap from 'gsap'
 
 // -------------------------------------------------
 // Customer Dashboard Component - Smart Insurance Claim Portal
 // Improved multi-step wizard with intelligent claim intake
 // -------------------------------------------------
-function CustomerDashboard({ onSwitchRole }) {
+function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
+  // Inject Premium Dark Glassmorphism CSS for Form pages
+  useEffect(() => {
+    const styleId = 'customer-premium-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = `
+        @font-face {
+          font-family: 'Neue Montreal';
+          src: url('https://dennissnellenberg.com/assets/fonts/NeueMontreal-Regular.otf') format('opentype');
+          font-weight: 400;
+          font-style: normal;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'Neue Montreal';
+          src: url('https://dennissnellenberg.com/assets/fonts/NeueMontreal-Bold.otf') format('opentype');
+          font-weight: 700;
+          font-style: normal;
+          font-display: swap;
+        }
+
+        /* Premium Dashboard Root overrides */
+        .premium-dashboard-root {
+          background-color: #050505 !important;
+          background-image: 
+            radial-gradient(circle at 15% 35%, rgba(18, 14, 30, 0.55), rgba(5, 5, 5, 0.95)),
+            linear-gradient(120deg, rgba(20,20,35,0.45), rgba(10,10,15,0.7)),
+            url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2400&q=80');
+          background-size: cover;
+          background-blend-mode: overlay;
+          background-attachment: fixed;
+          background-position: center;
+          color: #ffffff !important;
+          min-height: 100vh;
+          font-family: 'Neue Montreal', 'Sora', 'Segoe UI', sans-serif;
+          line-height: 1.62;
+          letter-spacing: 0.22px;
+        }
+        
+        .premium-dashboard-root::before {
+          content: "";
+          position: fixed;
+          inset: 0;
+          background: radial-gradient(circle at 50% 0%, rgba(10,10,15,0.7) 0%, rgba(5,5,5,0.95) 100%);
+          z-index: 0;
+          pointer-events: none;
+        }
+
+        .premium-dashboard-root * {
+          z-index: 1;
+        }
+
+        /* Layout sizing for fuller width */
+        .premium-dashboard-root main {
+          width: 100%;
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 40px 48px !important;
+        }
+
+        /* Override the inline #f5f7fa and white backgrounds */
+        .premium-dashboard-root header {
+           background: rgba(10, 10, 10, 0.4) !important;
+           backdrop-filter: blur(20px) !important;
+           -webkit-backdrop-filter: blur(20px) !important;
+           border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+           box-shadow: 0 4px 30px rgba(0,0,0,0.5) !important;
+        }
+        .premium-dashboard-root header h1 {
+           color: #fff !important;
+           font-weight: 300 !important;
+           letter-spacing: 1px !important;
+        }
+
+          /* Typography scale */
+          .premium-dashboard-root h1 { font-size: 47px !important; font-weight: 750 !important; letter-spacing: 0.40px; }
+          .premium-dashboard-root h2 { font-size: 36px !important; font-weight: 720 !important; letter-spacing: 0.33px; }
+          .premium-dashboard-root h3 { font-size: 29px !important; font-weight: 700 !important; letter-spacing: 0.27px; }
+          .premium-dashboard-root h4 { font-size: 22px !important; font-weight: 650 !important; letter-spacing: 0.21px; }
+          .premium-dashboard-root p, .premium-dashboard-root label, .premium-dashboard-root span, .premium-dashboard-root li { font-size: 16px !important; }
+
+        /* Main Form & Container Glassmorphism */
+        .premium-dashboard-root > main > div,
+        .premium-dashboard-root > main > div > div,
+        .premium-dashboard-root .glass-panel,
+        .premium-dashboard-root div[style*="background-color: white"],
+        .premium-dashboard-root div[style*="background-color: #fff"],
+        .premium-dashboard-root div[style*="background-color: rgb(255, 255, 255)"] {
+           background: rgba(20, 20, 20, 0.4) !important;
+           backdrop-filter: blur(24px) !important;
+           -webkit-backdrop-filter: blur(24px) !important;
+           border: 1px solid rgba(255,255,255,0.08) !important;
+           /* remove original harsh shadows */
+           box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+           color: #fff !important;
+        }
+
+        .premium-dashboard-root main > div {
+           animation: fadeInY 0.6s ease-out forwards;
+           border: none !important;
+           background: transparent !important;
+           box-shadow: none !important;
+        }
+
+        @keyframes fadeInY {
+           from { opacity: 0; transform: translateY(20px); }
+           to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Inputs and Textareas */
+        .premium-dashboard-root input,
+        .premium-dashboard-root select,
+        .premium-dashboard-root textarea {
+           background: rgba(255,255,255,0.03) !important;
+           border: 1px solid rgba(255,255,255,0.1) !important;
+           color: #fff !important;
+           border-radius: 12px !important;
+            padding: 14px 14px !important;
+            font-size: 16px !important;
+            transition: all 0.25s ease !important;
+        }
+          .premium-dashboard-root select option {
+            background: #0d0d12 !important;
+            color: #f6f6f6 !important;
+          }
+        .premium-dashboard-root input:focus,
+        .premium-dashboard-root select:focus,
+        .premium-dashboard-root textarea:focus {
+           background: rgba(255,255,255,0.07) !important;
+           border-color: rgba(255,255,255,0.3) !important;
+           outline: none !important;
+           box-shadow: 0 0 0 4px rgba(255,255,255,0.05) !important;
+        }
+          .premium-dashboard-root input:hover,
+          .premium-dashboard-root select:hover,
+          .premium-dashboard-root textarea:hover {
+            border-color: rgba(255,255,255,0.25) !important;
+            background: rgba(255,255,255,0.06) !important;
+          }
+
+          /* Buttons */
+            .premium-dashboard-root button {
+                border-radius: 12px !important;
+                transition: all 0.25s ease !important;
+                font-size: 16px !important;
+                letter-spacing: 0.21px;
+                padding: 14px 30px !important;
+              position: relative;
+              overflow: hidden;
+            }
+        
+        .premium-dashboard-root button[style*="#1976d2"],
+        .premium-dashboard-root button[style*="rgb(25, 118, 210)"] {
+           background: #fff !important;
+           color: #000 !important;
+           border: none !important;
+            font-weight: 600 !important;
+           text-shadow: none !important;
+        }
+        .premium-dashboard-root button[style*="#1976d2"]:hover,
+        .premium-dashboard-root button[style*="rgb(25, 118, 210)"]:hover {
+            background: linear-gradient(135deg, #ffffff, #d6ddff) !important;
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 18px 38px rgba(255,255,255,0.18) !important;
+        }
+
+          .premium-dashboard-root button:hover {
+            filter: brightness(1.06);
+          }
+
+          /* Input hover accents */
+          .premium-dashboard-root input:hover,
+          .premium-dashboard-root select:hover,
+          .premium-dashboard-root textarea:hover {
+            border-color: rgba(255,255,255,0.32) !important;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.35) !important;
+          }
+
+          /* Prev / Next CTA animations */
+          .premium-dashboard-root .nav-btn-primary {
+            background: linear-gradient(120deg, #ffffff, #d9e2ff) !important;
+            color: #0b0b0f !important;
+            box-shadow: 0 12px 28px rgba(255,255,255,0.15) !important;
+            font-weight: 700 !important;
+          }
+          .premium-dashboard-root .nav-btn-primary:hover {
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 18px 36px rgba(255,255,255,0.22) !important;
+          }
+          .premium-dashboard-root .nav-btn-secondary {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,255,255,0.25) !important;
+            color: #f6f6f6 !important;
+          }
+          .premium-dashboard-root .nav-btn-secondary:hover {
+            transform: translateY(-2px) scale(1.01);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.35) !important;
+          }
+
+        /* Secondary actions/BackButton */
+        .premium-dashboard-root button[style*="#666"],
+        .premium-dashboard-root button[style*="rgb(102, 102, 102)"],
+        .premium-dashboard-root button[style*="transparent"] {
+           color: #fff !important;
+           border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        .premium-dashboard-root button[style*="transparent"]:hover {
+           background: rgba(255,255,255,0.1) !important;
+        }
+
+        /* Text Fixes */
+        .premium-dashboard-root h2, 
+        .premium-dashboard-root h3, 
+        .premium-dashboard-root h4, 
+        .premium-dashboard-root p,
+        .premium-dashboard-root label,
+        .premium-dashboard-root li,
+        .premium-dashboard-root span {
+           color: #fff !important;
+        }
+        
+        .premium-dashboard-root div[style*="color: #666"],
+        .premium-dashboard-root div[style*="color: rgb(102, 102, 102)"],
+        .premium-dashboard-root span[style*="#666"] {
+           color: rgba(255,255,255,0.6) !important;
+        }
+
+        /* Step circle indicators */
+        .premium-dashboard-root div[style*="border-radius: 50%"] {
+           border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        .premium-dashboard-root div[style*="background-color: rgb(224, 224, 224)"],
+        .premium-dashboard-root div[style*="background-color: #e0e0e0"] {
+           background: rgba(255,255,255,0.1) !important;
+           color: rgba(255,255,255,0.4) !important;
+        }
+        .premium-dashboard-root div[style*="background-color: rgb(25, 118, 210)"],
+        .premium-dashboard-root div[style*="background-color: #1976d2"] {
+           background: #fff !important;
+           color: #000 !important;
+           box-shadow: 0 0 15px rgba(255,255,255,0.5) !important;
+        }
+        /* Step Connector lines */
+        .premium-dashboard-root div[style*="height: 2px"] {
+           background-color: rgba(255,255,255,0.1) !important;
+        }
+
+        /* Blanket override for light mode borders and backgrounds in tables/layout */
+        .premium-dashboard-root div, 
+        .premium-dashboard-root tr, 
+        .premium-dashboard-root th, 
+        .premium-dashboard-root td {
+            border-color: rgba(255,255,255,0.1) !important;
+        }
+        .premium-dashboard-root div[style*="background-color: #f5f5f5"],
+        .premium-dashboard-root div[style*="background-color: rgb(245, 245, 245)"],
+        .premium-dashboard-root tr[style*="background-color: #f5f5f5"],
+        .premium-dashboard-root tr[style*="background-color: rgb(245, 245, 245)"] {
+           background-color: rgba(255,255,255,0.02) !important;
+           color: #fff !important;
+        }
+      `;
+      // Append the main theme style
+      document.head.appendChild(style);
+
+      // Additional scoped fixes (modal & required-docs contrast, heading line-height)
+      const fixStyle = document.createElement('style');
+      fixStyle.id = 'customer-premium-fixes';
+      fixStyle.innerHTML = `
+        /* Prevent heading clipping */
+        .premium-dashboard-root h1, .premium-dashboard-root h2, .premium-dashboard-root h3 {
+          line-height: 1.12 !important;
+        }
+
+        /* Modal content should use dark text on light backgrounds */
+        .customer-modal-content, .customer-modal-content * {
+          color: #111 !important;
+        }
+
+        /* Required documents panel contrast */
+        .required-docs-panel, .required-docs-panel * {
+          color: #111 !important;
+          background-color: #f8f9fa !important;
+        }
+      `;
+      document.head.appendChild(fixStyle);
+    }
+  }, []);
+
   // View state: 'landing', 'form', 'success', 'tracking'
-  const [view, setView] = useState('landing')
+  const [view, setView] = useState(() => {
+    if (initialAction === 'new') return 'form';
+    if (initialAction === 'track') return 'tracking';
+    return 'landing';
+  });
   
   // Current step in claim form (1-6)
   const [currentStep, setCurrentStep] = useState(1)
+
+  // GSAP Animation Refs
+  const viewRef = useRef(null);
+  const stepRef = useRef(null);
+
+  // Animate View changes
+  useEffect(() => {
+    if (viewRef.current) {
+      gsap.fromTo(viewRef.current, 
+        { opacity: 0, y: 30, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }
+      );
+    }
+  }, [view]);
+
+  // Animate Step changes
+  useEffect(() => {
+    if (stepRef.current) {
+      gsap.fromTo(stepRef.current, 
+        { opacity: 0, x: 20 },
+        { opacity: 1, x: 0, duration: 0.5, ease: "power2.out", stagger: 0.1 }
+      );
+    }
+  }, [currentStep]);
   
   // Policy validation state
   const [policyNumber, setPolicyNumber] = useState('')
   const [vehicleNumber, setVehicleNumber] = useState('')
+
+  // Initialize policy number from login (if stored)
+  useEffect(() => {
+    const stored = localStorage.getItem('policy_number')
+    if (stored) setPolicyNumber(stored)
+  }, [])
   
   // Claims list for tracking
   const [claims, setClaims] = useState([])
@@ -86,19 +411,47 @@ function CustomerDashboard({ onSwitchRole }) {
 
   const fetchCustomerClaims = async () => {
     setLoading(true)
+    setError('')
     try {
-      const response = await claimService.getClaims()
+      const policyNum = policyNumber || localStorage.getItem('policy_number')
+      if (!policyNum) {
+        setError('Please enter your policy number using the search bar above to view your claims.')
+        setClaims([])
+        setLoading(false)
+        return
+      }
+      localStorage.setItem('policy_number', policyNum)
+      const response = await claimService.getClaims({ policy_number: policyNum })
       setClaims(response.data)
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to fetch claims')
+      handleApiError(err)
     } finally {
       setLoading(false)
     }
   }
 
   // Handle API errors
+  // Coerce backend validation objects/arrays into readable strings
   const handleApiError = (err) => {
-    const message = err.response?.data?.detail || err.message || 'An error occurred'
+    const detail = err?.response?.data?.detail ?? err?.response?.data ?? null
+    let message = 'An error occurred'
+    if (!detail) {
+      message = err?.message || message
+    } else if (typeof detail === 'string') {
+      message = detail
+    } else if (Array.isArray(detail)) {
+      // Likely a list of validation error objects from FastAPI/Pydantic
+      message = detail.map(d => {
+        if (typeof d === 'string') return d
+        const loc = Array.isArray(d.loc) ? d.loc.join('.') : d.loc
+        const msg = d.msg ?? JSON.stringify(d)
+        return loc ? `${loc}: ${msg}` : msg
+      }).join(' | ')
+    } else if (typeof detail === 'object') {
+      message = detail.msg || JSON.stringify(detail)
+    } else {
+      message = String(detail)
+    }
     setError(message)
   }
 
@@ -246,10 +599,29 @@ function CustomerDashboard({ onSwitchRole }) {
     setLoading(true)
     setError('')
 
+    if (!policyNumber) {
+      setError('Policy number is required. Please go back to step 1 and provide a valid policy number.')
+      setLoading(false)
+      return
+    }
+    
+    // Auto-save verified policy number to enable seamless tracking after claim
+    localStorage.setItem('policy_number', policyNumber)
+
     try {
       const policyRes = await policyService.getPolicyByNumber(policyNumber)
+      // Ensure policy id is an integer (backend expects int path/body)
+      const rawPolicyId = policyRes?.data?.id
+      const policyId = Number(rawPolicyId)
+      if (!Number.isInteger(policyId)) {
+        console.error('Invalid policy id from policy lookup:', rawPolicyId, policyRes?.data)
+        setError(`Invalid policy id returned from policy lookup: ${String(rawPolicyId)}`)
+        setLoading(false)
+        return
+      }
+
       const response = await claimService.createClaim({
-        policy_id: policyRes.data.id,
+        policy_id: policyId,
         incident_date: formData.incidentDate,
         description: formData.description
       })
@@ -355,8 +727,26 @@ function CustomerDashboard({ onSwitchRole }) {
       const claimRes = await claimService.getClaim(claim.id)
       setClaimDetail(claimRes.data)
       if (claimRes.data.policy_id) {
-        const policyRes = await policyService.getPolicy(claimRes.data.policy_id)
-        setClaimPolicy(policyRes.data)
+        const raw = claimRes.data.policy_id
+        const pid = Number(raw)
+        if (Number.isInteger(pid)) {
+          try {
+            const policyRes = await policyService.getPolicy(pid)
+            setClaimPolicy(policyRes.data)
+          } catch (e) {
+            console.error('Failed to fetch policy by id', pid, e)
+          }
+        } else if (typeof raw === 'string' && raw.trim()) {
+          // Fallback: some records may store policy_number in this field — try lookup by number
+          try {
+            const policyRes = await policyService.getPolicyByNumber(raw)
+            setClaimPolicy(policyRes.data)
+          } catch (e) {
+            console.error('Failed to fetch policy by policy_number fallback', raw, e)
+          }
+        } else {
+          console.warn('Claim has invalid policy_id value:', raw)
+        }
       }
       const historyRes = await claimService.getClaimHistory(claim.id)
       setClaimTimeline(historyRes.data)
@@ -453,23 +843,23 @@ function CustomerDashboard({ onSwitchRole }) {
 
   // Render landing page
   const renderLandingPage = () => (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '40px 20px' }}>
-      <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '36px', color: '#1976d2', marginBottom: '16px' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '48px 24px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+        <h1 style={{ fontSize: '42px', color: '#1976d2', marginBottom: '18px', letterSpacing: '0.5px' }}>
           Smart Insurance Claim Portal
         </h1>
-        <p style={{ fontSize: '18px', color: '#666' }}>
+        <p style={{ fontSize: '20px', color: '#666' }}>
           Submit and track your vehicle insurance claims easily.
         </p>
       </div>
 
       <div style={{ 
         backgroundColor: 'white', 
-        borderRadius: '12px', 
-        padding: '32px',
+        borderRadius: '14px', 
+        padding: '40px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
       }}>
-        <h2 style={{ marginBottom: '24px', fontSize: '20px' }}>Start Your Claim</h2>
+        <h2 style={{ marginBottom: '28px', fontSize: '24px' }}>Start Your Claim</h2>
         
         <div>
           <div style={{ marginBottom: '20px' }}>
@@ -516,14 +906,14 @@ function CustomerDashboard({ onSwitchRole }) {
             type="button"
             onClick={() => { setCurrentStep(1); setView('form'); }}
             style={{ 
-              padding: '14px 32px', 
+              padding: '16px 36px', 
               width: '100%',
               backgroundColor: '#1976d2', 
               color: 'white',
               border: 'none',
-              borderRadius: '8px',
-              fontSize: '16px',
-              fontWeight: '600',
+              borderRadius: '12px',
+              fontSize: '18px',
+              fontWeight: '700',
               cursor: 'pointer'
             }}
           >
@@ -532,16 +922,16 @@ function CustomerDashboard({ onSwitchRole }) {
         </div>
       </div>
 
-      <div style={{ marginTop: '30px', textAlign: 'center' }}>
+      <div style={{ marginTop: '32px', textAlign: 'center' }}>
         <button
           onClick={() => setView('tracking')}
           style={{ 
-            padding: '12px 24px',
+            padding: '14px 26px',
             backgroundColor: 'transparent',
             color: '#1976d2',
             border: '2px solid #1976d2',
-            borderRadius: '8px',
-            fontSize: '14px',
+            borderRadius: '12px',
+            fontSize: '15px',
             cursor: 'pointer'
           }}
         >
@@ -556,16 +946,22 @@ function CustomerDashboard({ onSwitchRole }) {
     const requiredDocs = getRequiredDocuments()
 
     return (
-      <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px' }}>
+      <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '28px 0' }}>
         <div style={{ 
           backgroundColor: 'white', 
-          borderRadius: '12px', 
-          padding: '32px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-        }}>
+          borderRadius: '14px', 
+          padding: '40px',
+          boxShadow: '0 8px 28px rgba(0,0,0,0.16)' 
+        }} ref={stepRef} className="glass-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <button
-              onClick={() => setView('landing')}
+              onClick={() => {
+                if (onBackToLanding) {
+                  onBackToLanding()
+                } else {
+                  setView('landing')
+                }
+              }}
               style={{ 
                 padding: '8px 16px',
                 backgroundColor: 'transparent',
@@ -598,8 +994,28 @@ function CustomerDashboard({ onSwitchRole }) {
           {currentStep === 1 && (
             <div>
               <h3 style={{ marginBottom: '24px', color: '#333' }}>Policy & Personal Details</h3>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div style={{ marginBottom: '16px', gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontWeight: '500', fontSize: '13px', color: '#666' }}>
+                    Policy Number <span style={{ color: '#f44336' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={policyNumber}
+                    onChange={(e) => setPolicyNumber(e.target.value)}
+                    placeholder="e.g., POL-2024-001"
+                    required
+                    style={{
+                      padding: '10px 12px',
+                      width: '100%',
+                      borderRadius: '6px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
                 {[
                   { label: 'Policy Holder Name', field: 'policyHolderName' },
                   { label: 'Vehicle Model', field: 'vehicleModel' },
@@ -1075,38 +1491,30 @@ function CustomerDashboard({ onSwitchRole }) {
           )}
 
           {/* Navigation Buttons */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #eee' }}>
-            <button
-              onClick={() => setCurrentStep(prev => prev - 1)}
-              disabled={currentStep === 1}
-              style={{ 
-                padding: '12px 24px',
-                backgroundColor: currentStep === 1 ? '#e0e0e0' : 'white',
-                color: currentStep === 1 ? '#999' : '#1976d2',
-                border: '1px solid #1976d2',
-                borderRadius: '8px',
-                cursor: currentStep === 1 ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Previous
-            </button>
-
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #eee', gap: '12px' }}>
             {currentStep < 3 ? (
               <button
+                className="nav-btn-primary"
                 onClick={() => {
-                  if (currentStep === 1 && !formData.claimType) {
-                    setError('Please select a claim type to proceed')
-                    return
+                  if (currentStep === 1) {
+                    if (!policyNumber) {
+                      setError('Policy Number is required to proceed')
+                      return
+                    }
+                    if (!formData.claimType) {
+                      setError('Please select a claim type to proceed')
+                      return
+                    }
                   }
                   setError('')
                   setCurrentStep(prev => prev + 1)
                 }}
-                style={{ 
-                  padding: '12px 32px',
-                  backgroundColor: '#1976d2',
-                  color: 'white',
+                style={{
+                  padding: '14px 36px',
+                  backgroundColor: '#ffffff',
+                  color: '#0b0b0f',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '14px',
                   cursor: 'pointer'
                 }}
               >
@@ -1114,14 +1522,15 @@ function CustomerDashboard({ onSwitchRole }) {
               </button>
             ) : (
               <button
+                className="nav-btn-primary"
                 onClick={handleSubmitClaim}
                 disabled={loading}
                 style={{ 
-                  padding: '12px 32px',
-                  backgroundColor: loading ? '#ccc' : '#4caf50',
-                  color: 'white',
+                  padding: '14px 36px',
+                  backgroundColor: loading ? '#b5b5b5' : '#ffffff',
+                  color: '#0b0b0f',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: '14px',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   fontWeight: '600'
                 }}
@@ -1137,12 +1546,12 @@ function CustomerDashboard({ onSwitchRole }) {
 
   // Render success page
   const renderSuccessPage = () => (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '40px 20px', textAlign: 'center' }}>
+    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '48px 24px', textAlign: 'center' }}>
       <div style={{ 
         backgroundColor: 'white', 
-        borderRadius: '12px', 
-        padding: '48px 32px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+        borderRadius: '14px', 
+        padding: '56px 40px',
+        boxShadow: '0 6px 28px rgba(0,0,0,0.14)'
       }}>
         <div style={{ 
           width: '80px', 
@@ -1230,16 +1639,24 @@ function CustomerDashboard({ onSwitchRole }) {
 
   // Render claims tracking - ENHANCED (Feature 5)
   const renderTrackingPage = () => (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '20px' }}>
+    <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '28px 0' }}>
       <div style={{ 
         backgroundColor: 'white', 
-        borderRadius: '12px', 
-        padding: '32px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.08)'
-      }}>
+        borderRadius: '14px', 
+        padding: '40px',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.16)' 
+        }} ref={stepRef} className="glass-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <button
-            onClick={() => { setView('landing'); setSelectedClaim(null); setClaimDetail(null) }}
+            onClick={() => {
+              if (onBackToLanding) {
+                onBackToLanding()
+              } else {
+                setView('landing');
+                setSelectedClaim(null);
+                setClaimDetail(null);
+              }
+            }}
             style={{ 
               padding: '8px 16px',
               backgroundColor: 'transparent',
@@ -1251,11 +1668,56 @@ function CustomerDashboard({ onSwitchRole }) {
             Back
           </button>
           <h2 style={{ margin: 0 }}>My Claims</h2>
-          <div></div>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                type="text"
+                placeholder="Enter Policy Number"
+                value={policyNumber}
+                onChange={(e) => setPolicyNumber(e.target.value)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #ddd",
+                  width: "200px"
+                }}
+              />
+              <button
+                onClick={fetchCustomerClaims}
+                disabled={!policyNumber}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: policyNumber ? "#1976d2" : "#ccc",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: policyNumber ? "pointer" : "not-allowed"
+                }}
+              >
+                Fetch
+              </button>
+            </div>
         </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#f44336' }}>
+            <p>{error}</p>
+            <button
+              onClick={() => setView('landing')}
+              style={{ 
+                padding: '12px 24px',
+                backgroundColor: '#1976d2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                marginTop: '16px'
+              }}
+            >
+              Go to Home
+            </button>
+          </div>
         ) : claims.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
             <p>No claims found. Start a new claim to file your insurance claim.</p>
@@ -1503,8 +1965,8 @@ function CustomerDashboard({ onSwitchRole }) {
 
   // Main render
   return (
-    <div style={{ 
-      minHeight: '100vh', 
+    <div className="premium-dashboard-root" style={{
+      minHeight: '100vh',
       backgroundColor: '#f5f7fa',
       fontFamily: "'Segoe UI', Roboto, sans-serif"
     }}>
@@ -1520,7 +1982,7 @@ function CustomerDashboard({ onSwitchRole }) {
           Smart Insurance Claim Portal
         </h1>
         <button 
-          onClick={onSwitchRole} 
+          onClick={onBackToLanding || onSwitchRole} 
           style={{ 
             padding: '8px 16px',
             backgroundColor: 'transparent',
@@ -1534,7 +1996,7 @@ function CustomerDashboard({ onSwitchRole }) {
         </button>
       </header>
 
-      <main style={{ padding: '24px' }}>
+      <main ref={viewRef} style={{ padding: '40px 48px', width: '100%', maxWidth: '1400px', margin: '0 auto' }}>
         {view === 'landing' && renderLandingPage()}
         {view === 'form' && renderStepForm()}
         {view === 'success' && renderSuccessPage()}
@@ -1545,4 +2007,10 @@ function CustomerDashboard({ onSwitchRole }) {
 }
 
 export default CustomerDashboard
+
+
+
+
+
+
 

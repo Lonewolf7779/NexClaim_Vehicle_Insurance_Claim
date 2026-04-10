@@ -33,7 +33,7 @@ export const claimService = {
    * GET /claims
    * @returns {Promise} Array of claim objects
    */
-  getClaims: () => api.get('/claims'),
+  getClaims: (params) => api.get('/claims', { params }),
 
   /**
    * Fetch a single claim by ID
@@ -310,7 +310,12 @@ export const policyService = {
    * @param {string} policyNumber - Policy number
    * @returns {Promise} Single policy object
    */
-  getPolicyByNumber: (policyNumber) => api.get(`/policies/by-number/${policyNumber}`)
+  getPolicyByNumber: (policyNumber) => {
+    if (!policyNumber) {
+      return Promise.reject(new Error('Policy number is required to fetch a policy.'));
+    }
+    return api.get(`/policies/by-number/${policyNumber}`)
+  },
 }
 
 

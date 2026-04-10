@@ -1,0 +1,10 @@
+There are 7 main pages/routes that load on the UI based on your App.jsx routing:
+
+/ — LandingPage (main entry, with actions to start claim or track)
+/NexOfficer — OfficerDashboard (for officer role)
+/NexSupreme — EscalationDashboard (for supreme role)
+/NexSamurai — SurveyorDashboard (for samurai role)
+/dashboard — CustomerDashboard (customer dashboard)
+/claim — CustomerDashboard (claim form, initialAction="new")
+/track — CustomerDashboard (claim tracking, initialAction="track")
+There is also a catch-all route that redirects any unknown path to /.

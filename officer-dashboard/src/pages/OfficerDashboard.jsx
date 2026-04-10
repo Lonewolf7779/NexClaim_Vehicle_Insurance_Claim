@@ -176,8 +176,25 @@ function OfficerDashboard({ onSwitchRole }) {
       const claimResponse = await claimService.getClaim(claim.id)
       setSelectedClaim(claimResponse.data)
       if (claimResponse.data.policy_id) {
-        const policyResponse = await policyService.getPolicy(claimResponse.data.policy_id)
-        setPolicy(policyResponse.data)
+        const raw = claimResponse.data.policy_id
+        const pid = Number(raw)
+        if (Number.isInteger(pid)) {
+          try {
+            const policyResponse = await policyService.getPolicy(pid)
+            setPolicy(policyResponse.data)
+          } catch (e) {
+            console.error('Failed to fetch policy by id', pid, e)
+          }
+        } else if (typeof raw === 'string' && raw.trim()) {
+          try {
+            const policyResponse = await policyService.getPolicyByNumber(raw)
+            setPolicy(policyResponse.data)
+          } catch (e) {
+            console.error('Failed to fetch policy by policy_number fallback', raw, e)
+          }
+        } else {
+          console.warn('Claim has invalid policy_id value:', raw)
+        }
       }
       const historyResponse = await claimService.getClaimHistory(claim.id)
       setClaimHistory(historyResponse.data)

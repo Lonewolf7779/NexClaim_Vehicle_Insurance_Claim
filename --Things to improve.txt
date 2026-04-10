@@ -1,10 +1,6 @@
 --Things to improve
 
--At Customer dashboard.
+-Seprating each page to a specific link
+-At customer page where he/she has to enter the policy number and vehicle number --add a password option
+-
 
--now lets make the dashboard real world use, add all the fields that a customer has to give for the insurance claim.
--Context:when the user enters to our webite he/she should see a landing page
--Add a landing page--giving descrption about our site and other things 
--in the same page ask customer to enter policy number and his/her vehicle number(add a validation that it must match)
--once matched ask level by level detailed entry of the incident details
--Ask customer to add other required details that are needed to claim insurance 

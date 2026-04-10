@@ -127,8 +127,28 @@ function SurveyorDashboard({ onSwitchRole }) {
     setSurveyReports(Array.isArray(reportsResponse.data) ? reportsResponse.data : [])
 
     if (claimResponse.data.policy_id) {
-      const policyResponse = await policyService.getPolicy(claimResponse.data.policy_id)
-      setSelectedPolicy(policyResponse.data)
+      const raw = claimResponse.data.policy_id
+      const pid = Number(raw)
+      if (Number.isInteger(pid)) {
+        try {
+          const policyResponse = await policyService.getPolicy(pid)
+          setSelectedPolicy(policyResponse.data)
+        } catch (e) {
+          console.error('Failed to fetch policy by id', pid, e)
+          setSelectedPolicy(null)
+        }
+      } else if (typeof raw === 'string' && raw.trim()) {
+        try {
+          const policyResponse = await policyService.getPolicyByNumber(raw)
+          setSelectedPolicy(policyResponse.data)
+        } catch (e) {
+          console.error('Failed to fetch policy by policy_number fallback', raw, e)
+          setSelectedPolicy(null)
+        }
+      } else {
+        console.warn('Claim has invalid policy_id value:', raw)
+        setSelectedPolicy(null)
+      }
     } else {
       setSelectedPolicy(null)
     }

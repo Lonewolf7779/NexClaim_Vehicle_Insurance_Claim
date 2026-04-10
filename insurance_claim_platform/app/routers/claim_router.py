@@ -117,13 +117,26 @@ def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(g
 # Claim Retrieval
 # -------------------------------------------------
 @router.get("/", response_model=list[ClaimResponse])
-def get_claims(status: Optional[ClaimStatus] = Query(default=None), db: Session = Depends(get_db)):
+def get_claims(
+    status: Optional[ClaimStatus] = Query(default=None),
+    policy_number: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db)
+):
     """
-    Retrieve all claims from the database.
+    Retrieve claims from the database.
+    When `policy_number` is provided, only claims matching that policy are returned.
+    This allows simple per-customer scoping when the frontend supplies the customer's policy number.
     """
-    query = db.query(Claim)
+    # Start base query
+    if policy_number:
+        # Join Policy to filter by policy_number
+        query = db.query(Claim).join(Policy, Claim.policy_id == Policy.id).filter(Policy.policy_number == policy_number)
+    else:
+        query = db.query(Claim)
+
     if status is not None:
         query = query.filter(Claim.status == status)
+
     claims = query.order_by(Claim.updated_at.desc(), Claim.created_at.desc()).all()
     return [serialize_claim(db, claim) for claim in claims]
 
