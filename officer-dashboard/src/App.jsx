@@ -10,12 +10,14 @@ import SurveyorDashboard from './pages/SurveyorDashboard'
 import Login from './pages/Login'
 import CustomerClaimsPage from './components/CustomerClaimsPage'
 import CustomerClaimDetailPage from './components/CustomerClaimDetailPage'
+import RoleTransition from './components/RoleTransition'
 import { useAuth } from './contexts/AuthContext'
 
 function App() {
   const navigate = useNavigate()
 
-  const [loading, setLoading] = useState(true)
+  const location = useLocation()
+  const [loading, setLoading] = useState(location.pathname === '/')
   const { auth, login, logout, setRole } = useAuth()
 
   const handlePreloaderComplete = () => {
@@ -56,128 +58,166 @@ function App() {
     const theme = roleThemes[role]
     const [form, setForm] = useState({ user: '', pass: '' })
     const [error, setError] = useState('')
+    const [authenticating, setAuthenticating] = useState(false)
 
     const handleSubmit = (e) => {
       e.preventDefault()
       const username = form.user?.trim().toLowerCase()
-      // Allow quick bypass when user types 'admin', otherwise validate dummy creds
       if (username === 'admin' || (form.user === theme.credentials.user && form.pass === theme.credentials.pass)) {
-        login(role)
-        setError('')
+        setAuthenticating(true)
+        setTimeout(() => {
+          login(role)
+          setError('')
+        }, 2500)
         return
       }
-      setError('Invalid credentials. Try the provided dummy combo or type "admin" to bypass.')
+      setError('Invalid credentials.')
     }
 
     return (
+      <RoleTransition roleName={theme.title} isAfterLogin={authenticating}>     
       <div style={{
         minHeight: '100vh',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        background: theme.gradient,
-        color: '#e5e7eb',
-        position: 'relative',
-        overflow: 'hidden'
+        display: 'flex',
+        flexDirection: 'row',
+        backgroundColor: '#1c1d20',
+        color: '#ffffff',
+        fontFamily: '"Helvetica Neue", "Neue Montreal", Arial, sans-serif',
+        position: 'relative'
       }}>
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 25%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.06), transparent 22%), radial-gradient(circle at 50% 80%, rgba(255,255,255,0.05), transparent 35%)', filter: 'blur(40px)' }} />
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${theme.image})`, backgroundSize: 'cover', backgroundPosition: 'center', mixBlendMode: 'soft-light', opacity: 0.18 }} />
+        {/* Left pane: Login form */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 5vw', position: 'relative' }}>
+          {/* Subtle noise texture */}
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")', opacity: 0.3, pointerEvents: 'none' }} />
 
-        <div style={{ padding: '18vh 7vw', position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* brand removed per request */}
-          <h1 style={{ fontSize: 'clamp(2.8rem, 3vw, 3.4rem)', lineHeight: 1.05, letterSpacing: '-0.03em' }}>{theme.title}</h1>
-          <p style={{ maxWidth: '520px', color: 'rgba(255,255,255,0.7)', fontSize: '1.05rem' }}>{theme.subtitle}</p>
-
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', color: theme.accent }}>
-            <span style={{ padding: '8px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${theme.accent}` }}>user: {theme.credentials.user}</span>
-            <span style={{ padding: '8px 14px', borderRadius: '999px', background: 'rgba(255,255,255,0.05)', border: `1px solid ${theme.accent}` }}>pass: {theme.credentials.pass}</span>
+          <div style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '8vh', zIndex: 10 }}>
+          <div>
+            <h1 style={{ fontSize: 'clamp(3rem, 7vw, 7rem)', fontWeight: 400, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.1 }}>
+              {theme.title}
+            </h1>
+            <p style={{ marginTop: '24px', fontSize: '1.4rem', color: '#999999', fontWeight: 300 }}>
+              {theme.subtitle}
+            </p>
           </div>
 
-          <div style={{ marginTop: '28px', width: '100%', maxWidth: '520px' }}>
-            <div style={{ padding: '28px', borderRadius: '20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: theme.glow }}>
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.95rem', color: 'rgba(255,255,255,0.8)' }}>
-                  Username
-                  <input
-                    type="text"
-                    value={form.user}
-                    onChange={(e) => setForm(prev => ({ ...prev, user: e.target.value }))}
-                    placeholder={theme.credentials.user}
-                    style={{
-                      background: 'rgba(0,0,0,0.35)',
-                      border: `1px solid rgba(255,255,255,0.18)`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      color: '#fff',
-                      fontSize: '1rem',
-                      outline: 'none',
-                      transition: 'border-color 0.3s, transform 0.2s',
-                      boxShadow: '0 12px 28px rgba(0,0,0,0.3)'
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.transform = 'translateY(0)' }}
-                  />
-                </label>
-
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.95rem', color: 'rgba(255,255,255,0.8)' }}>
-                  Password
-                  <input
-                    type="password"
-                    value={form.pass}
-                    onChange={(e) => setForm(prev => ({ ...prev, pass: e.target.value }))}
-                    placeholder={theme.credentials.pass}
-                    style={{
-                      background: 'rgba(0,0,0,0.35)',
-                      border: `1px solid rgba(255,255,255,0.18)`,
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      color: '#fff',
-                      fontSize: '1rem',
-                      outline: 'none',
-                      transition: 'border-color 0.3s, transform 0.2s',
-                      boxShadow: '0 12px 28px rgba(0,0,0,0.3)'
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = theme.accent; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)'; e.currentTarget.style.transform = 'translateY(0)' }}
-                  />
-                </label>
-
-                {error && <div style={{ color: '#fca5a5', fontSize: '0.95rem' }}>{error}</div>}
-
-                <button
-                  type="submit"
-                  style={{
-                    marginTop: '4px',
-                    background: `linear-gradient(120deg, ${theme.accent}, #ffffff10)` ,
-                    color: '#0b1021',
-                    border: 'none',
-                    borderRadius: '14px',
-                    padding: '14px 16px',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    cursor: 'pointer',
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                    boxShadow: theme.glow
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px) scale(1.01)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(1)' }}
-                >
-                  Enter
-                </button>
-              </form>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '40px', maxWidth: '400px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666666' }}>Username</label>
+              <input 
+                type="text" 
+                value={form.user} 
+                onChange={(e) => setForm(prev => ({ ...prev, user: e.target.value }))}
+                placeholder={theme.credentials.user}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid #333333',
+                  padding: '12px 0',
+                  color: '#ffffff',
+                  fontSize: '1.2rem',
+                  outline: 'none',
+                  transition: 'border-color 0.3s ease'
+                }}
+                onFocus={(e) => e.target.style.borderBottomColor = '#ffffff'}
+                onBlur={(e) => e.target.style.borderBottomColor = '#333333'}
+              />
             </div>
-          </div>
-        </div>
 
-        <div style={{ position: 'relative', zIndex: 1, overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${theme.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'grayscale(0.2) saturate(1.2)', transform: 'scale(1.03)' }} />
-          <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.12), transparent 35%), linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.7) 100%)' }} />
-          <div style={{ position: 'absolute', bottom: '6vh', left: '6vh', color: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(6px)', padding: '18px 20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(0,0,0,0.35)' }}>
-            <div style={{ fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: theme.accent }}>Live Ops Feed</div>
-            <div style={{ marginTop: '10px', fontSize: '1.05rem', lineHeight: 1.5 }}>"We keep the pipeline clean and decisive. Welcome back to the deck."</div>
-          </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666666' }}>Password</label>
+              <input 
+                type="password" 
+                value={form.pass} 
+                onChange={(e) => setForm(prev => ({ ...prev, pass: e.target.value }))}
+                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '1px solid #333333',
+                  padding: '12px 0',
+                  color: '#ffffff',
+                  fontSize: '1.2rem',
+                  outline: 'none',
+                  transition: 'border-color 0.3s ease'
+                }}
+                onFocus={(e) => e.target.style.borderBottomColor = '#ffffff'}
+                onBlur={(e) => e.target.style.borderBottomColor = '#333333'}
+              />
+            </div>
+
+            {error && <div style={{ color: '#ff5555', fontSize: '0.9rem' }}>{error}</div>}
+
+            <style>{`
+              .water-btn {
+                position: relative;
+                overflow: hidden;
+                background: transparent;
+                border: 1px solid #333333;
+                color: #ffffff;
+                padding: 16px 40px;
+                border-radius: 999px;
+                cursor: pointer;
+                font-size: 1rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                transition: color 0.4s ease, border-color 0.4s ease;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+              }
+              .water-btn::before {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 0%;
+                background: #ffffff;
+                border-radius: 50% 50% 0 0;
+                transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.5s ease;
+                z-index: 0;
+              }
+              .water-btn:hover::before {
+                height: 100%;
+                border-radius: 0;
+              }
+              .water-btn:hover {
+                color: #1c1d20;
+                border-color: #ffffff;
+              }
+            `}</style>
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start', width: '100%' }}>
+              <button className="water-btn" type="submit">
+                <span style={{ position: 'relative', zIndex: 2, pointerEvents: 'none' }}>Enter</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
+      
+      {/* Right pane: Color gradient */}
+      <div style={{ 
+        flex: 1, 
+        background: theme.gradient, 
+        position: 'relative', 
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {/* Inner glow effect utilizing theme accent */}
+        <div style={{ 
+          position: 'absolute', 
+          width: '150%', 
+          height: '150%', 
+          background: `radial-gradient(circle at center, ${theme.accent} 0%, transparent 60%)`, 
+          opacity: 0.15, 
+          filter: 'blur(60px)' 
+        }} />
+      </div>
+      
+      </div>
+      </RoleTransition>
     )
   }
 
@@ -212,12 +252,10 @@ function App() {
     return children
   }
 
-  if (loading) {
-    return <Preloader onComplete={handlePreloaderComplete} />
-  }
-
   return (
-    <div className="app">
+    <>
+      {loading && <Preloader onComplete={handlePreloaderComplete} />}
+      <div className="app">
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/customer-login" element={<Login />} />
@@ -286,8 +324,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
+    </>
   )
 }
-
-export default App
-
+export default App;

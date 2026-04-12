@@ -9,7 +9,7 @@ const SplitTextReveal = ({ text, className }) => {
   return (
     <h2 className={`split-text-target ${className || ''}`}>
       {text.split(' ').map((word, i) => (
-        <span key={i} className="word-mask" style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', marginTop: '0.1em', marginRight: '0.25em' }}>
+        <span key={i} className="word-mask" style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', marginTop: '0.1em', marginRight: '0.25em', paddingBottom: '0.2em', marginBottom: '-0.2em' }}>
           <span className="word-inner" style={{ display: 'inline-block', transform: 'translateY(120%)', transformOrigin: 'top left', willChange: 'transform' }}>
             {word}
           </span>
@@ -83,7 +83,7 @@ const LandingPage = ({ onAction, onLoginClick }) => {
       .hero-bg-image { width: 100%; height: 130%; object-fit: cover; position: absolute; top: -15%; left: 0; will-change: transform; filter: brightness(0.9); }
       .hero-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.3) 50%, rgba(5,5,5,0.1) 100%); z-index: 1; pointer-events: none; }
       
-      .hero-content { position: relative; z-index: 10; pointer-events: auto; max-width: 1100px; margin-top: 5vh; }
+      .hero-content { position: relative; z-index: 10; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
       .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 2.5rem; }
       
       .hero-subtext { font-size: clamp(1.1rem, 1.5vw, 1.4rem); color: rgba(255, 255, 255, 0.7); line-height: 1.5; max-width: 600px; margin-bottom: 4rem; }
@@ -239,7 +239,7 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         .premium-nav { padding: 24px; }
         .hero-section { padding: 12vh 24px 10vh 24px; justify-content: center; }
         .hero-content { margin-top: 80px; }
-        .hero-title { margin-top: 20px; }
+        .hero-title { margin-top: 0px; }
         .button-group { flex-direction: column; width: 100%; }
         .btn { width: 100%; justify-content: center; }
         .section-layout { padding: 12vh 24px; }
@@ -415,7 +415,7 @@ const LandingPage = ({ onAction, onLoginClick }) => {
 
       <nav className="premium-nav">
         <a href="#" className="magnetic-wrap nav-brand" style={{ textDecoration: 'none', color: '#fff' }}>
-          <span className="magnetic-inner">NexClaim.</span>
+          <span className="magnetic-inner"></span>
         </a>
         <div className="magnetic-wrap" onClick={onLoginClick} style={{ cursor: 'pointer' }}>
           <span className="btn btn-secondary magnetic-inner" style={{ padding: '12px 24px', fontSize: '0.85rem' }}>Login <ArrowUpRight size={16} /></span>

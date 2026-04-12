@@ -6,7 +6,7 @@ Represents documents that have been extracted and processed
 for a specific claim. Tracks the document type and extraction timestamp.
 """
 
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum as SQLEnum
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -33,6 +33,7 @@ class ExtractedDocument(Base):
     # Document Metadata
     # -------------------------------------------------
     document_type = Column(SQLEnum(DocumentType), nullable=False)
+    file_path = Column(String(500), nullable=True)
 
     # -------------------------------------------------
     # Timestamps

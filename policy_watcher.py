@@ -22,13 +22,12 @@ def enforce_watch_root_policy(keep_xml_path: Optional[str] = None) -> None:
     """
     Enforce root folder policy for WATCH_PATH:
     1) Only .xml files are allowed (non-xml files are deleted)
-    2) At most one .xml file remains in WATCH_PATH root
     """
     if not os.path.exists(WATCH_PATH):
         return
 
-    keep_abs = os.path.abspath(keep_xml_path) if keep_xml_path else None
-    xml_files = []
+    # We intentionally allow multiple XML files to exist in WATCH_PATH.
+    # This function only removes folders and non-XML files.
 
     for entry in os.scandir(WATCH_PATH):
         if entry.is_dir():
@@ -53,28 +52,8 @@ def enforce_watch_root_policy(keep_xml_path: Optional[str] = None) -> None:
                 logger.error(f'Failed deleting non-XML file {entry.path}: {ex}')
             continue
 
-        xml_files.append(entry.path)
-
-    if keep_abs:
-        for xml_path in xml_files:
-            if os.path.abspath(xml_path) != keep_abs:
-                try:
-                    os.remove(xml_path)
-                    logger.info(f'Deleted extra XML file from watch root: {xml_path}')
-                except OSError as ex:
-                    logger.error(f'Failed deleting extra XML file {xml_path}: {ex}')
-        return
-
-    if len(xml_files) <= 1:
-        return
-
-    xml_files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
-    for stale_xml in xml_files[1:]:
-        try:
-            os.remove(stale_xml)
-            logger.info(f'Deleted older XML file from watch root: {stale_xml}')
-        except OSError as ex:
-            logger.error(f'Failed deleting older XML file {stale_xml}: {ex}')
+        # Keep all .xml files
+        continue
 
 def extract_policy_fields(root: ET.Element) -> dict:
     """Extract specific 12 fields from <PolicyConfig> root, with type conversions."""
@@ -132,7 +111,7 @@ class PolicyHandler(FileSystemEventHandler):
         print(f"WATCHER: New file detected: {event.src_path}")
         print(f"DEBUG: Found file {filename}")
         logger.info(f'New XML file detected: {event.src_path}')
-        enforce_watch_root_policy(keep_xml_path=event.src_path)
+        enforce_watch_root_policy()
         self.process_xml(event.src_path)
 
     def on_modified(self, event):
@@ -162,7 +141,6 @@ class PolicyHandler(FileSystemEventHandler):
             response = requests.post(
                 API_URL,
                 json=policy_data,
-                headers={'X-Replace-Existing-Policies': 'true'},
                 timeout=10
             )
             print(f'WATCHER: API Status: {response.status_code}')

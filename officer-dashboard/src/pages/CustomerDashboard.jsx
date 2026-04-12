@@ -303,7 +303,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
     if (initialAction === 'track') return 'tracking';
     return 'landing';
   });
-  
+
   // Current step in claim form (1-6)
   const [currentStep, setCurrentStep] = useState(1)
 
@@ -314,7 +314,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
   // Animate View changes
   useEffect(() => {
     if (viewRef.current) {
-      gsap.fromTo(viewRef.current, 
+      gsap.fromTo(viewRef.current,
         { opacity: 0, y: 30, scale: 0.98 },
         { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }
       );
@@ -324,13 +324,13 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
   // Animate Step changes
   useEffect(() => {
     if (stepRef.current) {
-      gsap.fromTo(stepRef.current, 
+      gsap.fromTo(stepRef.current,
         { opacity: 0, x: 20 },
         { opacity: 1, x: 0, duration: 0.5, ease: "power2.out", stagger: 0.1 }
       );
     }
   }, [currentStep]);
-  
+
   // Policy validation state
   const [policyNumber, setPolicyNumber] = useState('')
   const [vehicleNumber, setVehicleNumber] = useState('')
@@ -340,11 +340,11 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
     const stored = localStorage.getItem('policy_number')
     if (stored) setPolicyNumber(stored)
   }, [])
-  
+
   // Claims list for tracking
   const [claims, setClaims] = useState([])
   const [selectedClaim, setSelectedClaim] = useState(null)
-  
+
   // File validation errors
   const [fileErrors, setFileErrors] = useState({})
 
@@ -388,13 +388,13 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
     subrogationLetter: null,
     dischargeVoucher: null,
   })
-  
+
   // Document upload tracking for checklist
   const [uploadedDocs, setUploadedDocs] = useState({})
-  
+
   // Submission result
   const [submittedClaim, setSubmittedClaim] = useState(null)
-  
+
   // Loading and error states
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -413,7 +413,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
     setLoading(true)
     setError('')
     try {
-      const policyNum = policyNumber || localStorage.getItem('policy_number')
+      const policyNum = (policyNumber || localStorage.getItem('policy_number'))?.trim()
       if (!policyNum) {
         setError('Please enter your policy number using the search bar above to view your claims.')
         setClaims([])
@@ -604,9 +604,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
       setLoading(false)
       return
     }
-    
+
     // Auto-save verified policy number to enable seamless tracking after claim
-    localStorage.setItem('policy_number', policyNumber)
+    localStorage.setItem('policy_number', policyNumber.trim())
 
     try {
       const policyRes = await policyService.getPolicyByNumber(policyNumber)
@@ -853,14 +853,14 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
         </p>
       </div>
 
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderRadius: '14px', 
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '14px',
         padding: '40px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
       }}>
         <h2 style={{ marginBottom: '28px', fontSize: '24px' }}>Start Your Claim</h2>
-        
+
         <div>
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
@@ -871,9 +871,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
               value={policyNumber}
               onChange={(e) => setPolicyNumber(e.target.value)}
               placeholder="e.g., POL-2024-001"
-              style={{ 
-                padding: '12px', 
-                width: '100%', 
+              style={{
+                padding: '12px',
+                width: '100%',
                 borderRadius: '8px',
                 border: '1px solid #ddd',
                 fontSize: '16px',
@@ -891,9 +891,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
               value={vehicleNumber}
               onChange={(e) => setVehicleNumber(e.target.value)}
               placeholder="e.g., MH01AB1234"
-              style={{ 
-                padding: '12px', 
-                width: '100%', 
+              style={{
+                padding: '12px',
+                width: '100%',
                 borderRadius: '8px',
                 border: '1px solid #ddd',
                 fontSize: '16px',
@@ -905,10 +905,10 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
           <button
             type="button"
             onClick={() => { setCurrentStep(1); setView('form'); }}
-            style={{ 
-              padding: '16px 36px', 
+            style={{
+              padding: '16px 36px',
               width: '100%',
-              backgroundColor: '#1976d2', 
+              backgroundColor: '#1976d2',
               color: 'white',
               border: 'none',
               borderRadius: '12px',
@@ -925,7 +925,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
       <div style={{ marginTop: '32px', textAlign: 'center' }}>
         <button
           onClick={() => setView('tracking')}
-          style={{ 
+          style={{
             padding: '14px 26px',
             backgroundColor: 'transparent',
             color: '#1976d2',
@@ -947,11 +947,11 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
     return (
       <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '28px 0' }}>
-        <div style={{ 
-          backgroundColor: 'white', 
-          borderRadius: '14px', 
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '14px',
           padding: '40px',
-          boxShadow: '0 8px 28px rgba(0,0,0,0.16)' 
+          boxShadow: '0 8px 28px rgba(0,0,0,0.16)'
         }} ref={stepRef} className="glass-panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <button
@@ -962,7 +962,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                   setView('landing')
                 }
               }}
-              style={{ 
+              style={{
                 padding: '8px 16px',
                 backgroundColor: 'transparent',
                 color: '#666',
@@ -979,12 +979,12 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
           {renderStepIndicator()}
 
           {error && (
-            <div style={{ 
-              color: '#f44336', 
-              padding: '12px', 
+            <div style={{
+              color: '#f44336',
+              padding: '12px',
               marginBottom: '20px',
-              backgroundColor: '#ffebee', 
-              borderRadius: '8px' 
+              backgroundColor: '#ffebee',
+              borderRadius: '8px'
             }}>
               {error}
             </div>
@@ -1036,9 +1036,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                       value={formData[field]}
                       onChange={(e) => updateFormData(field, e.target.value)}
                       placeholder={placeholder || `Enter ${label}`}
-                      style={{ 
-                        padding: '10px 12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '10px 12px',
+                        width: '100%',
                         borderRadius: '6px',
                         border: '1px solid #ddd',
                         fontSize: '14px',
@@ -1051,7 +1051,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
               <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #eee' }}>
                 <h4 style={{ marginBottom: '16px', color: '#1976d2' }}>Incident Details</h4>
-                
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Incident Date *</label>
@@ -1061,9 +1061,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                       onChange={(e) => updateFormData('incidentDate', e.target.value)}
                       placeholder="YYYY-MM-DD"
                       required
-                      style={{ 
-                        padding: '12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '12px',
+                        width: '100%',
                         borderRadius: '8px',
                         border: '1px solid #ddd',
                         boxSizing: 'border-box'
@@ -1078,9 +1078,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                       onChange={(e) => updateFormData('incidentLocation', e.target.value)}
                       required
                       placeholder="Enter location of incident"
-                      style={{ 
-                        padding: '12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '12px',
+                        width: '100%',
                         borderRadius: '8px',
                         border: '1px solid #ddd',
                         boxSizing: 'border-box'
@@ -1095,9 +1095,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     value={formData.claimType}
                     onChange={(e) => updateFormData('claimType', e.target.value)}
                     required
-                    style={{ 
-                      padding: '12px', 
-                      width: '100%', 
+                    style={{
+                      padding: '12px',
+                      width: '100%',
                       borderRadius: '8px',
                       border: '1px solid #ddd',
                       boxSizing: 'border-box'
@@ -1118,9 +1118,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     required
                     rows="4"
                     placeholder="Describe what happened"
-                    style={{ 
-                      padding: '12px', 
-                      width: '100%', 
+                    style={{
+                      padding: '12px',
+                      width: '100%',
                       borderRadius: '8px',
                       border: '1px solid #ddd',
                       boxSizing: 'border-box'
@@ -1136,9 +1136,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                       value={formData.estimatedRepairCost}
                       onChange={(e) => updateFormData('estimatedRepairCost', e.target.value)}
                       placeholder="Enter estimated cost"
-                      style={{ 
-                        padding: '12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '12px',
+                        width: '100%',
                         borderRadius: '8px',
                         border: '1px solid #ddd',
                         boxSizing: 'border-box'
@@ -1150,9 +1150,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     <select
                       value={formData.anotherVehicleInvolved}
                       onChange={(e) => updateFormData('anotherVehicleInvolved', e.target.value)}
-                      style={{ 
-                        padding: '12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '12px',
+                        width: '100%',
                         borderRadius: '8px',
                         border: '1px solid #ddd',
                         boxSizing: 'border-box'
@@ -1211,9 +1211,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     <select
                       value={formData.policeReportFiled}
                       onChange={(e) => updateFormData('policeReportFiled', e.target.value)}
-                      style={{ 
-                        padding: '12px', 
-                        width: '100%', 
+                      style={{
+                        padding: '12px',
+                        width: '100%',
                         borderRadius: '8px',
                         border: '1px solid #ddd',
                         boxSizing: 'border-box'
@@ -1255,9 +1255,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
               {/* FEATURE 4: Dynamic Document Checklist */}
               {formData.claimType && (
-                <div style={{ 
-                  backgroundColor: '#f8f9fa', 
-                  padding: '16px', 
+                <div style={{
+                  backgroundColor: '#f8f9fa',
+                  padding: '16px',
                   borderRadius: '8px',
                   marginBottom: '24px',
                   border: '1px solid #e0e0e0'
@@ -1269,13 +1269,13 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     {requiredDocs.map((doc) => {
                       const isUploaded = uploadedDocs[doc.id] || formData[doc.id]
                       return (
-                        <div key={doc.id} style={{ 
-                          display: 'flex', 
+                        <div key={doc.id} style={{
+                          display: 'flex',
                           alignItems: 'center',
                           fontSize: '13px',
                           color: isUploaded ? '#4caf50' : '#666'
                         }}>
-                          <span style={{ 
+                          <span style={{
                             marginRight: '8px',
                             color: isUploaded ? '#4caf50' : '#ccc'
                           }}>
@@ -1290,9 +1290,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
               )}
 
               {!formData.claimType ? (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '40px', 
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
                   color: '#666',
                   backgroundColor: '#fff3e0',
                   borderRadius: '8px'
@@ -1314,9 +1314,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                           multiple
                           accept=".jpg,.jpeg,.png"
                           onChange={(e) => handleFileUpload('damagePhotosDoc', e.target.files)}
-                          style={{ 
-                            padding: '12px', 
-                            width: '100%', 
+                          style={{
+                            padding: '12px',
+                            width: '100%',
                             borderRadius: '8px',
                             border: '1px solid #ddd',
                             backgroundColor: 'white',
@@ -1356,7 +1356,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                   {/* FEATURE 2: Incident generated documents */}
                   <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px' }}>
                     <h4 style={{ margin: '0 0 16px', fontSize: '14px', color: '#333' }}>Incident Documents</h4>
-                    
+
                     {requiredDocs.map((doc) => {
                       // Skip damage photos as it's handled separately
                       if (doc.id === 'damagePhotosDoc' && showDamagePhotos()) return null
@@ -1365,7 +1365,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
                       const allowed = allowedExtensions[doc.id] || ['.pdf', '.jpg', '.jpeg', '.png']
                       const acceptStr = allowed.join(',')
-                      
+
                       return (
                         <div key={doc.id} style={{ marginBottom: '16px' }}>
                           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
@@ -1375,9 +1375,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                             type="file"
                             accept={acceptStr}
                             onChange={(e) => handleFileUpload(doc.id, e.target.files)}
-                            style={{ 
-                              padding: '12px', 
-                              width: '100%', 
+                            style={{
+                              padding: '12px',
+                              width: '100%',
                               borderRadius: '8px',
                               border: '1px solid #ddd',
                               backgroundColor: 'white',
@@ -1404,10 +1404,10 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
           {currentStep === 3 && (
             <div>
               <h3 style={{ marginBottom: '24px' }}>Review Your Claim</h3>
-              
-              <div style={{ 
-                backgroundColor: '#f5f5f5', 
-                padding: '20px', 
+
+              <div style={{
+                backgroundColor: '#f5f5f5',
+                padding: '20px',
                 borderRadius: '8px',
                 marginBottom: '20px'
               }}>
@@ -1424,9 +1424,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 </div>
               </div>
 
-              <div style={{ 
-                backgroundColor: '#f5f5f5', 
-                padding: '20px', 
+              <div style={{
+                backgroundColor: '#f5f5f5',
+                padding: '20px',
                 borderRadius: '8px',
                 marginBottom: '20px'
               }}>
@@ -1464,9 +1464,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 )}
               </div>
 
-              <div style={{ 
-                backgroundColor: '#e3f2bd', 
-                padding: '20px', 
+              <div style={{
+                backgroundColor: '#e3f2bd',
+                padding: '20px',
                 borderRadius: '8px',
                 marginBottom: '20px'
               }}>
@@ -1475,8 +1475,8 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                   {requiredDocs.map((doc) => {
                     const isUploaded = uploadedDocs[doc.id] || formData[doc.id]
                     return (
-                      <div key={doc.id} style={{ 
-                        display: 'flex', 
+                      <div key={doc.id} style={{
+                        display: 'flex',
                         alignItems: 'center',
                         color: isUploaded ? '#2e7d32' : '#666'
                       }}>
@@ -1525,7 +1525,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 className="nav-btn-primary"
                 onClick={handleSubmitClaim}
                 disabled={loading}
-                style={{ 
+                style={{
                   padding: '14px 36px',
                   backgroundColor: loading ? '#b5b5b5' : '#ffffff',
                   color: '#0b0b0f',
@@ -1547,16 +1547,16 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
   // Render success page
   const renderSuccessPage = () => (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '48px 24px', textAlign: 'center' }}>
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderRadius: '14px', 
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '14px',
         padding: '56px 40px',
         boxShadow: '0 6px 28px rgba(0,0,0,0.14)'
       }}>
-        <div style={{ 
-          width: '80px', 
-          height: '80px', 
-          borderRadius: '50%', 
+        <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
           backgroundColor: '#4caf50',
           display: 'flex',
           alignItems: 'center',
@@ -1578,9 +1578,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
             : 'Your claim has been submitted and is now being processed.'}
         </p>
 
-        <div style={{ 
-          backgroundColor: '#f5f5f5', 
-          padding: '24px', 
+        <div style={{
+          backgroundColor: '#f5f5f5',
+          padding: '24px',
           borderRadius: '8px',
           marginBottom: '32px'
         }}>
@@ -1590,8 +1590,8 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
           </div>
           <div>
             <span style={{ color: '#666' }}>Status: </span>
-            <span style={{ 
-              padding: '4px 12px', 
+            <span style={{
+              padding: '4px 12px',
               borderRadius: '4px',
               backgroundColor: '#1976d2',
               color: 'white',
@@ -1605,7 +1605,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
         <button
           onClick={handleStartNewClaim}
-          style={{ 
+          style={{
             padding: '14px 32px',
             backgroundColor: '#1976d2',
             color: 'white',
@@ -1621,7 +1621,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
         <button
           onClick={() => setView('tracking')}
-          style={{ 
+          style={{
             padding: '14px 32px',
             backgroundColor: 'white',
             color: '#1976d2',
@@ -1640,12 +1640,12 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
   // Render claims tracking - ENHANCED (Feature 5)
   const renderTrackingPage = () => (
     <div style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '28px 0' }}>
-      <div style={{ 
-        backgroundColor: 'white', 
-        borderRadius: '14px', 
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '14px',
         padding: '40px',
-        boxShadow: '0 8px 28px rgba(0,0,0,0.16)' 
-        }} ref={stepRef} className="glass-panel">
+        boxShadow: '0 8px 28px rgba(0,0,0,0.16)'
+      }} ref={stepRef} className="glass-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <button
             onClick={() => {
@@ -1657,7 +1657,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 setClaimDetail(null);
               }
             }}
-            style={{ 
+            style={{
               padding: '8px 16px',
               backgroundColor: 'transparent',
               color: '#666',
@@ -1668,34 +1668,34 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
             Back
           </button>
           <h2 style={{ margin: 0 }}>My Claims</h2>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input
-                type="text"
-                placeholder="Enter Policy Number"
-                value={policyNumber}
-                onChange={(e) => setPolicyNumber(e.target.value)}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "6px",
-                  border: "1px solid #ddd",
-                  width: "200px"
-                }}
-              />
-              <button
-                onClick={fetchCustomerClaims}
-                disabled={!policyNumber}
-                style={{
-                  padding: "8px 16px",
-                  backgroundColor: policyNumber ? "#1976d2" : "#ccc",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: policyNumber ? "pointer" : "not-allowed"
-                }}
-              >
-                Fetch
-              </button>
-            </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              placeholder="Enter Policy Number"
+              value={policyNumber}
+              onChange={(e) => setPolicyNumber(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "6px",
+                border: "1px solid #ddd",
+                width: "200px"
+              }}
+            />
+            <button
+              onClick={fetchCustomerClaims}
+              disabled={!policyNumber}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: policyNumber ? "#1976d2" : "#ccc",
+                color: "white",
+                border: "none",
+                borderRadius: "6px",
+                cursor: policyNumber ? "pointer" : "not-allowed"
+              }}
+            >
+              Fetch
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -1705,7 +1705,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
             <p>{error}</p>
             <button
               onClick={() => setView('landing')}
-              style={{ 
+              style={{
                 padding: '12px 24px',
                 backgroundColor: '#1976d2',
                 color: 'white',
@@ -1723,7 +1723,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
             <p>No claims found. Start a new claim to file your insurance claim.</p>
             <button
               onClick={() => setView('landing')}
-              style={{ 
+              style={{
                 padding: '12px 24px',
                 backgroundColor: '#1976d2',
                 color: 'white',
@@ -1756,8 +1756,8 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                     {claim.incident_date ? formatDate(claim.incident_date) : 'N/A'}
                   </td>
                   <td style={{ padding: '12px' }}>
-                    <span style={{ 
-                      padding: '4px 12px', 
+                    <span style={{
+                      padding: '4px 12px',
                       borderRadius: '4px',
                       backgroundColor: getStatusColor(claim.status),
                       color: 'white',
@@ -1770,7 +1770,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                   <td style={{ padding: '12px', textAlign: 'center' }}>
                     <button
                       onClick={() => handleViewClaimDetail(claim)}
-                      style={{ 
+                      style={{
                         padding: '6px 16px',
                         backgroundColor: '#1976d2',
                         color: 'white',
@@ -1805,13 +1805,18 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
           zIndex: 1000
         }}>
           <div style={{
-            backgroundColor: 'white',
+            background: 'rgba(20, 20, 20, 0.65)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
             borderRadius: '12px',
             padding: '32px',
             maxWidth: '700px',
             width: '90%',
             maxHeight: '85vh',
-            overflow: 'auto'
+            overflow: 'auto',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '20px' }}>Claim Details</h3>
@@ -1828,7 +1833,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
             ) : (
               <>
                 {/* Claim Information */}
-                <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                   <h4 style={{ margin: '0 0 12px', color: '#1976d2', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Claim Information</h4>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '14px' }}>
                     <div><span style={{ color: '#666' }}>Claim ID: </span><strong>#{selectedClaim.id}</strong></div>
@@ -1849,7 +1854,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 </div>
 
                 {/* Incident Details */}
-                <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                   <h4 style={{ margin: '0 0 12px', color: '#1976d2', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Incident Details</h4>
                   <div style={{ fontSize: '14px' }}>
                     <p style={{ margin: '0 0 8px' }}><span style={{ color: '#666' }}>Description: </span>{claimDetail?.description || selectedClaim.description || 'No description'}</p>
@@ -1858,7 +1863,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
                 {/* Settlement Calculation (if available) */}
                 {(claimDetail?.estimated_amount || claimDetail?.final_payable) && (
-                  <div style={{ backgroundColor: '#e8f5e9', padding: '16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #c8e6c9' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                     <h4 style={{ margin: '0 0 12px', color: '#2e7d32', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Settlement Summary</h4>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '14px' }}>
                       {claimDetail.estimated_amount != null && (
@@ -1871,7 +1876,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                         <div><span style={{ color: '#666' }}>Deductible: </span><strong>₹{claimDetail.deductible_amount?.toLocaleString()}</strong></div>
                       )}
                       {claimDetail.final_payable != null && (
-                        <div style={{ gridColumn: '1 / -1', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #c8e6c9' }}>
+                        <div style={{ gridColumn: '1 / -1', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                           <span style={{ color: '#666', fontSize: '16px' }}>Final Payable: </span>
                           <strong style={{ fontSize: '20px', color: '#2e7d32' }}>₹{claimDetail.final_payable?.toLocaleString()}</strong>
                         </div>
@@ -1881,39 +1886,66 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                 )}
 
                 {/* Uploaded Documents */}
-                <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
                   <h4 style={{ margin: '0 0 12px', color: '#1976d2', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documents</h4>
-                  {[
-                    { type: 'CLAIM_FORM', label: 'Claim Form', icon: '📝' },
-                    { type: 'REPAIR_ESTIMATE', label: 'Repair Estimate', icon: '💰' },
-                    { type: 'REPAIR_INVOICE', label: 'Repair Invoice', icon: '🧾' },
-                    { type: 'REPAIR_BILLS', label: 'Repair Bills', icon: '🧾' },
-                    { type: 'FIR', label: 'FIR Copy', icon: '👮' },
-                    { type: 'DAMAGE_PHOTOS', label: 'Damage Photos', icon: '📷' },
-                    { type: 'SURVEY_REPORT', label: 'Survey Report', icon: '📋' },
-                  ].map((doc) => {
-                    const fileName = `ClaimID_${selectedClaim.id}_${doc.type}.pdf`
-                    const url = `http://localhost:8000/rpa-data/Inbound/${fileName}?t=${Date.now()}`
-                    return (
-                      <div key={doc.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #eee' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span>{doc.icon}</span>
-                          <span style={{ fontSize: '14px' }}>{doc.label}</span>
+                  {Array.isArray(claimDocuments) && claimDocuments.length > 0 ? (
+                    claimDocuments.map((doc) => {
+                      const iconMap = {
+                        CLAIM_FORM: '📝',
+                        REPAIR_ESTIMATE: '💰',
+                        REPAIR_INVOICE: '🧾',
+                        REPAIR_BILLS: '🧾',
+                        FIR: '👮',
+                        DAMAGE_PHOTOS: '📷',
+                        SURVEY_REPORT: '📋'
+                      }
+                      const docType = String(doc?.document_type || 'DOCUMENT')
+                      const label = docType.replace(/_/g, ' ')
+                      const icon = iconMap[docType] || '📄'
+                      const url = doc?.file_path ? `http://localhost:8000${doc.file_path}?t=${Date.now()}` : null
+                      const canView = Boolean(url)
+
+                      return (
+                        <div key={doc?.id ?? `${docType}-${doc?.extracted_at ?? ''}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span>{icon}</span>
+                            <div>
+                              <div style={{ fontSize: '14px' }}>{label}</div>
+                              {doc?.extracted_at && (
+                                <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                                  Uploaded {formatDateTime(doc.extracted_at)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => canView && setCustomerPreviewDoc({ label, url })}
+                            disabled={!canView}
+                            style={{
+                              padding: '4px 12px',
+                              backgroundColor: canView ? '#e3f2fd' : '#eee',
+                              color: canView ? '#1976d2' : '#999',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: canView ? 'pointer' : 'not-allowed',
+                              fontSize: '11px'
+                            }}
+                          >
+                            View
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setCustomerPreviewDoc({ label: doc.label, url })}
-                          style={{ padding: '4px 12px', backgroundColor: '#e3f2fd', color: '#1976d2', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}
-                        >View</button>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  ) : (
+                    <div style={{ color: '#666', fontSize: '14px' }}>No documents uploaded for this claim.</div>
+                  )}
                 </div>
 
                 {/* Document Preview Modal — near-fullscreen */}
                 {customerPreviewDoc && customerPreviewDoc.url && (
                   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}
                     onClick={() => setCustomerPreviewDoc(null)}>
-                    <div style={{ backgroundColor: 'white', borderRadius: '10px', padding: '20px', width: '96vw', height: '94vh', display: 'flex', flexDirection: 'column' }}
+                    <div style={{ background: 'rgba(20, 20, 20, 0.65)', color: '#fff', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', borderRadius: '10px', padding: '20px', width: '96vw', height: '94vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.65)' }}
                       onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                         <h3 style={{ margin: 0 }}>{customerPreviewDoc.label}</h3>
@@ -1921,7 +1953,7 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
                       </div>
                       <iframe
                         src={customerPreviewDoc.url}
-                        style={{ flex: 1, border: '1px solid #e0e0e0', borderRadius: '6px', width: '100%' }}
+                        style={{ flex: 1, border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px', width: '100%' }}
                         title={customerPreviewDoc.label}
                       />
                     </div>
@@ -1930,10 +1962,10 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
 
                 {/* Claim Timeline */}
                 {claimTimeline.length > 0 && (
-                  <div style={{ backgroundColor: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '16px', borderRadius: '8px' }}>
                     <h4 style={{ margin: '0 0 12px', color: '#1976d2', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Claim Timeline</h4>
                     <div style={{ position: 'relative', paddingLeft: '24px' }}>
-                      <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', backgroundColor: '#e0e0e0' }} />
+                      <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '2px', backgroundColor: 'rgba(255,255,255,0.12)' }} />
                       {claimTimeline.map((entry, index) => (
                         <div key={index} style={{ position: 'relative', marginBottom: '16px' }}>
                           <div style={{
@@ -1970,9 +2002,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
       backgroundColor: '#f5f7fa',
       fontFamily: "'Segoe UI', Roboto, sans-serif"
     }}>
-      <header style={{ 
-        backgroundColor: 'white', 
-        padding: '16px 24px', 
+      <header style={{
+        backgroundColor: 'white',
+        padding: '16px 24px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         display: 'flex',
         justifyContent: 'space-between',
@@ -1981,9 +2013,9 @@ function CustomerDashboard({ onSwitchRole, onBackToLanding, initialAction }) {
         <h1 style={{ margin: 0, fontSize: '20px', color: '#1976d2' }}>
           Smart Insurance Claim Portal
         </h1>
-        <button 
-          onClick={onBackToLanding || onSwitchRole} 
-          style={{ 
+        <button
+          onClick={onBackToLanding || onSwitchRole}
+          style={{
             padding: '8px 16px',
             backgroundColor: 'transparent',
             color: '#666',

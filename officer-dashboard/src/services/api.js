@@ -33,7 +33,7 @@ export const claimService = {
    * GET /claims
    * @returns {Promise} Array of claim objects
    */
-  getClaims: (params) => api.get('/claims', { params }),
+  getClaims: (params) => api.get('/claims/', { params }),
 
   /**
    * Fetch a single claim by ID
@@ -184,13 +184,13 @@ export const claimService = {
   // ================================================
   // Surveyor Dashboard API Methods
   // ================================================
-  
+
   /**
    * Fetch claims assigned to surveyor (status = SURVEY_ASSIGNED)
    * GET /claims?status=SURVEY_ASSIGNED
    * @returns {Promise} Array of survey-pending claims
    */
-  getSurveyClaims: () => api.get('/claims?status=SURVEY_ASSIGNED'),
+  getSurveyClaims: () => api.get('/claims/?status=SURVEY_ASSIGNED'),
 
   /**
    * Fetch survey report history for a claim
@@ -294,7 +294,7 @@ export const policyService = {
    * GET /policies
    * @returns {Promise} Array of policy objects
    */
-  getPolicies: () => api.get('/policies'),
+  getPolicies: () => api.get('/policies/'),
 
   /**
    * Fetch a single policy by ID

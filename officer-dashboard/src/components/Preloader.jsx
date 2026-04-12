@@ -67,9 +67,10 @@ const Preloader = ({ onComplete }) => {
     })
     .to(preloaderRef.current, {
       y: '-100vh',
-      duration: 0.8, // Super smooth, heavy lift
-      ease: 'power4.inOut',
-      roundProps: 'y'
+      borderBottomLeftRadius: '50% 20vh',
+      borderBottomRightRadius: '50% 20vh',
+      duration: 1.1, // Smooth heavy lift
+      ease: 'power4.inOut'
     }, "-=0.5");
 
     return () => {

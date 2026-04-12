@@ -6,11 +6,17 @@ export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState({ customer: false, officer: false, supreme: false, samurai: false })
 
   useEffect(() => {
+    // Forcing a fresh start so you can see the login page and preloaders again
+    localStorage.removeItem('auth_customer')
+    localStorage.removeItem('auth_officer')
+    localStorage.removeItem('auth_supreme')
+    localStorage.removeItem('auth_samurai')
+
     const initial = {
-      customer: localStorage.getItem('auth_customer') === 'true',
-      officer: localStorage.getItem('auth_officer') === 'true',
-      supreme: localStorage.getItem('auth_supreme') === 'true',
-      samurai: localStorage.getItem('auth_samurai') === 'true'
+      customer: false,
+      officer: false,
+      supreme: false,
+      samurai: false
     }
     setAuth(initial)
   }, [])

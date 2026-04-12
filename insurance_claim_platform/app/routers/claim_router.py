@@ -7,6 +7,7 @@ claim creation, retrieval, and status updates.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from datetime import datetime
@@ -245,6 +246,10 @@ class FieldData(BaseModel):
 
 class DocumentIngestRequest(BaseModel):
     document_type: DocumentType
+    # Optional targeting fields to ensure we update an existing uploaded document row.
+    # When omitted, the server will try to resolve a unique matching document.
+    document_id: Optional[int] = None
+    file_path: Optional[str] = None
     fields: Dict[str, FieldData]
 
 
@@ -276,26 +281,124 @@ def ingest_document(
         )
 
     # -------------------------------------------------
-    # Document Creation
+    # Locate Existing Document (no duplicates)
     # -------------------------------------------------
-    extracted_doc = ExtractedDocument(
-        claim_id=claim.id,
-        document_type=document.document_type
-    )
-    db.add(extracted_doc)
-    db.flush()
+    extracted_doc = None
+
+    if document.document_id is not None:
+        extracted_doc = (
+            db.query(ExtractedDocument)
+            .filter(
+                ExtractedDocument.id == document.document_id,
+                ExtractedDocument.claim_id == claim.id,
+            )
+            .first()
+        )
+        if not extracted_doc:
+            raise HTTPException(status_code=404, detail="Document not found for claim")
+
+    elif document.file_path:
+        extracted_doc = (
+            db.query(ExtractedDocument)
+            .filter(
+                ExtractedDocument.claim_id == claim.id,
+                ExtractedDocument.file_path == document.file_path,
+            )
+            .first()
+        )
+        if not extracted_doc:
+            raise HTTPException(status_code=404, detail="Document not found for claim and file_path")
+
+    else:
+        candidates = (
+            db.query(ExtractedDocument)
+            .filter(
+                ExtractedDocument.claim_id == claim.id,
+                ExtractedDocument.document_type == document.document_type,
+            )
+            .order_by(ExtractedDocument.id.asc())
+            .all()
+        )
+
+        if not candidates:
+            raise HTTPException(
+                status_code=404,
+                detail="No matching document found. Upload the file before ingesting fields.",
+            )
+
+        if len(candidates) == 1:
+            extracted_doc = candidates[0]
+        else:
+            unprocessed = (
+                db.query(ExtractedDocument)
+                .outerjoin(ExtractedField, ExtractedField.document_id == ExtractedDocument.id)
+                .filter(
+                    ExtractedDocument.claim_id == claim.id,
+                    ExtractedDocument.document_type == document.document_type,
+                )
+                .group_by(ExtractedDocument.id)
+                .having(func.count(ExtractedField.id) == 0)
+                .order_by(ExtractedDocument.id.asc())
+                .all()
+            )
+
+            if len(unprocessed) == 1:
+                extracted_doc = unprocessed[0]
+            elif len(unprocessed) > 1:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Multiple matching documents found. Provide document_id or file_path.",
+                )
+            else:
+                raise HTTPException(
+                    status_code=409,
+                    detail="All matching documents already have extracted fields. Provide document_id or file_path.",
+                )
+
+    # Ensure payload type matches the resolved record.
+    if extracted_doc.document_type != document.document_type:
+        raise HTTPException(
+            status_code=409,
+            detail="document_type does not match the existing document record",
+        )
+
+    # If the client provides file_path, use it to backfill missing values.
+    if document.file_path and not extracted_doc.file_path:
+        extracted_doc.file_path = document.file_path
 
     # -------------------------------------------------
-    # Field Insertion
+    # Field Upsert
     # -------------------------------------------------
+    existing_fields = (
+        db.query(ExtractedField)
+        .filter(ExtractedField.document_id == extracted_doc.id)
+        .all()
+    )
+    existing_by_name = {f.field_name: f for f in existing_fields}
+    incoming_names = set(document.fields.keys())
+
+    # Remove stale fields if the incoming payload is the new source of truth.
+    for existing in existing_fields:
+        if existing.field_name not in incoming_names:
+            db.delete(existing)
+
     for field_name, field_data in document.fields.items():
-        extracted_field = ExtractedField(
-            document_id=extracted_doc.id,
-            field_name=field_name,
-            field_value=field_data.value,
-            confidence_score=field_data.confidence
-        )
-        db.add(extracted_field)
+        existing = existing_by_name.get(field_name)
+        if existing:
+            existing.field_value = field_data.value
+            existing.confidence_score = field_data.confidence
+        else:
+            db.add(
+                ExtractedField(
+                    document_id=extracted_doc.id,
+                    field_name=field_name,
+                    field_value=field_data.value,
+                    confidence_score=field_data.confidence,
+                )
+            )
+
+    # Mark extraction timestamp at ingest time.
+    extracted_doc.extracted_at = datetime.utcnow()
 
     # -------------------------------------------------
     # Status Transition
@@ -1638,6 +1741,7 @@ def get_claim_documents(claim_id: int, db: Session = Depends(get_db)):
         result.append({
             "id": doc.id,
             "document_type": doc.document_type.value,
+            "file_path": doc.file_path,
             "extracted_at": doc.extracted_at.isoformat() if doc.extracted_at else None,
             "fields": [
                 {

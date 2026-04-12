@@ -84,7 +84,7 @@ function ClaimDetails() {
       // Fetch documents
       try {
         const documentsResponse = await claimService.getDocuments(id)
-        const validDocs = documentsResponse.data.filter(doc => doc.fields && doc.fields.length > 0)
+        const validDocs = documentsResponse.data;
         setDocuments(validDocs)
       } catch (err) {
         setDocuments([])
@@ -303,6 +303,13 @@ function ClaimDetails() {
             <div key={index} className="document-item">
               <p><strong>Document Type:</strong> {doc.document_type}</p>
               <p><strong>Uploaded At:</strong> {new Date(doc.extracted_at).toLocaleString()}</p>
+              {doc.file_path && (
+                <p>
+                  <a href={`http://localhost:8000${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="view-doc-btn">
+                    View Document
+                  </a>
+                </p>
+              )}
             </div>
           ))
         ) : (

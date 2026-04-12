@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, UploadFile, File, Query, Depends
@@ -51,8 +52,29 @@ async def lifespan(app: FastAPI):
             watcher_proc.kill()
             print("Killed policy watcher")
 
+
+def _run_startup_migrations() -> None:
+    """Apply lightweight SQLite migrations (no Alembic).
+
+    NOTE: `Base.metadata.create_all()` does not alter existing tables.
+    """
+    if engine.dialect.name != "sqlite":
+        return
+
+    try:
+        with engine.begin() as conn:
+            cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(extracted_documents)").fetchall()]
+            if "file_path" not in cols:
+                conn.exec_driver_sql(
+                    "ALTER TABLE extracted_documents ADD COLUMN file_path VARCHAR(500)"
+                )
+    except Exception as e:
+        # Keep startup resilient; downstream endpoints will surface issues if migration truly failed.
+        print(f"Startup migration warning: {e}")
+
 # Create tables automatically (before app)
 Base.metadata.create_all(bind=engine)
+_run_startup_migrations()
 
 # App creation at end
 app = FastAPI(lifespan=lifespan)
@@ -107,19 +129,20 @@ def upload_file(
     safe_type = "".join(c for c in document_type if c.isalnum() or c == "_")
     saved_files = []
 
-    for idx, file in enumerate(files):
+    for file in files:
         # Reset file pointer to ensure full content is read
         file.file.seek(0)
-        if len(files) == 1:
-            file_name = f"ClaimID_{claim_id}_{safe_type}.pdf"
-        else:
-            file_name = f"ClaimID_{claim_id}_{safe_type}_{idx + 1}.pdf"
+        unique_id = uuid.uuid4().hex
+        file_name = f"{unique_id}_{safe_type}.pdf"
         file_path = os.path.join(INBOUND_DIR, file_name)
 
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
 
-        saved_files.append({"file_name": file_name, "file_path": file_path})
+        # Construct safe relative path to send to frontend
+        # The frontend uses this to make GET requests to /rpa-data/Inbound/...
+        frontend_file_path = f"/rpa-data/Inbound/{file_name}"
+        saved_files.append({"file_name": file_name, "file_path": frontend_file_path})
 
         # Register document in the database instantly
         try:
@@ -127,7 +150,11 @@ def upload_file(
         except ValueError:
             doc_enum = DocumentType.INVOICE
         
-        db_doc = ExtractedDocument(claim_id=claim_id, document_type=doc_enum)
+        db_doc = ExtractedDocument(
+            claim_id=claim_id, 
+            document_type=doc_enum,
+            file_path=frontend_file_path
+        )
         db.add(db_doc)
         db.commit()
 
