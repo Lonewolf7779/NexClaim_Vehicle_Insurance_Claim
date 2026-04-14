@@ -54,17 +54,7 @@ POLICY_PROFILES = [
         'rc_number': 'MH12CD987654'
     },
     {
-        'policy_holder_name': 'Neha Singh',
-        'vehicle_number': 'TN10EF2468',
-        'vehicle_model': 'Tata Nexon',
-        'policy_start_date': '2026-03-01T00:00:00',
-        'policy_end_date': '2027-03-01T00:00:00',
-        'is_active': True,
-        'idv_amount': 695000.0,
-        'aadhar_number': '650987123456',
-        'pan_number': 'DDSPS9012H',
-        'driving_license_number': 'TN1020170098765',
-        'rc_number': 'TN10EF135790'
+        b
     }
 ]
 
