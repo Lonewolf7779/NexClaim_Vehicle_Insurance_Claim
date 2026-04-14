@@ -1,54 +1,153 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import RoleTransition from './RoleTransition'
+import { useAuth } from '../contexts/AuthContext'
+import Preloader from './Preloader'
+
+// Mock policy database - in production, fetch from API
+const mockPolicies = {
+  'POL1001': 'Rajesh Kumar',
+  'POL1002': 'Priya Sharma',
+  'POL1003': 'Amit Patel',
+  'POL1004': 'Sneha Reddy',
+  'POL1005': 'Vikram Singh',
+  'POL-2024-001': 'John Smith',
+  'POL-2024-002': 'Jane Doe',
+  'POL-2024-003': 'Robert Johnson',
+  'POL-2024-004': 'Maria Garcia',
+  'POL-2024-005': 'David Wilson',
+}
 
 export default function CustomerLogin({ onSuccess, onClose }) {
-  const [form, setForm] = useState({ user: '', pass: '', policy: '', vehicle: '' })
+  const { loginCustomer } = useAuth()
+  
+  const [mode, setMode] = useState('login') // 'login' or 'signup'
+  const [form, setForm] = useState({ policyNumber: '', password: '' })
   const [error, setError] = useState('')
   const [authenticating, setAuthenticating] = useState(false)
+  const [showPreloader, setShowPreloader] = useState(false)
+  const [welcomeName, setWelcomeName] = useState('')
 
   const theme = {
     title: 'NexCustomer Portal',
-    subtitle: 'Track your claims and settlements with full transparency.',
+    subtitle: mode === 'login' 
+      ? 'Track your claims and settlements with full transparency.' 
+      : 'Create your account to access your policy details.',
     gradient: 'linear-gradient(135deg, #091c1b 0%, #112d2c 50%, #030e0e 100%)',
     accent: '#10b981', // green for customer
-    credentials: { user: 'customer@nexclaim.io', pass: 'atlas-claim' }
+  }
+
+  // Validate policy exists in the system
+  const validatePolicyExists = (policyNumber) => {
+    return mockPolicies.hasOwnProperty(policyNumber.toUpperCase())
+  }
+
+  // Get policyholder name
+  const getPoliceholderName = (policyNumber) => {
+    return mockPolicies[policyNumber.toUpperCase()] || null
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const username = form.user?.trim().toLowerCase()
-    
-    // Quick validation
-    if (username === 'admin' || (form.user === theme.credentials.user && form.pass === theme.credentials.pass)) {
-      setAuthenticating(true)
-      setTimeout(() => {
-        setError('')
-        onSuccess(form)
-      }, 2500)
+    setError('')
+
+    const policyNum = form.policyNumber.trim().toUpperCase()
+    const password = form.password
+
+    // Validate inputs
+    if (!policyNum) {
+      setError('Policy number is required.')
       return
     }
-    setError('Invalid credentials.')
+    if (!password) {
+      setError('Password is required.')
+      return
+    }
+
+    // Check password (hardcoded for testing)
+    if (password !== 'admin') {
+      setError('Invalid password.')
+      return
+    }
+
+    // Check if policy exists
+    if (!validatePolicyExists(policyNum)) {
+      if (mode === 'signup') {
+        setError('Policy number not found in the system.')
+      } else {
+        setError('Invalid policy number.')
+      }
+      return
+    }
+
+    // Get policyholder name
+    const name = getPoliceholderName(policyNum)
+    if (!name) {
+      setError('Unable to retrieve policyholder information.')
+      return
+    }
+
+    // Authentication successful
+    setAuthenticating(true)
+    setWelcomeName(name)
+
+    // Simulate API call
+    setTimeout(() => {
+      // Store in context and localStorage
+      loginCustomer(policyNum, name)
+      
+      // Show preloader with welcome message
+      setShowPreloader(true)
+    }, 1500)
+  }
+
+  const handlePreloaderComplete = () => {
+    setShowPreloader(false)
+    setError('')
+    onSuccess({ policyNumber: form.policyNumber.toUpperCase(), policeholderName: welcomeName })
+  }
+
+  if (showPreloader) {
+    return <Preloader onComplete={handlePreloaderComplete} customMessage={`Welcome ${welcomeName}`} />
   }
 
   return (
     <RoleTransition roleName={theme.title} isAfterLogin={authenticating}>
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'row',
-        backgroundColor: '#1c1d20',
-        color: '#ffffff',
-        fontFamily: '"Helvetica Neue", "Neue Montreal", Arial, sans-serif',
-        position: 'relative'
-      }}>
-        {/* Left pane: Login form */}
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'row',
+          backgroundColor: '#1c1d20',
+          color: '#ffffff',
+          fontFamily: '"Helvetica Neue", "Neue Montreal", Arial, sans-serif',
+          position: 'relative',
+        }}
+      >
+        {/* Left pane: Login/Sign Up form */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 5vw', position: 'relative' }}>
           {/* Subtle noise texture */}
-          <div style={{ position: 'absolute', inset: 0, backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")', opacity: 0.3, pointerEvents: 'none' }} />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: 'url("https://www.transparenttextures.com/patterns/stardust.png")',
+              opacity: 0.3,
+              pointerEvents: 'none',
+            }}
+          />
 
           <div style={{ maxWidth: '600px', width: '100%', display: 'flex', flexDirection: 'column', gap: '8vh', zIndex: 10 }}>
+            {/* Header */}
             <div>
-              <h1 style={{ fontSize: 'clamp(3rem, 6vw, 6rem)', fontWeight: 400, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.1 }}>
+              <h1
+                style={{
+                  fontSize: 'clamp(3rem, 6vw, 6rem)',
+                  fontWeight: 400,
+                  letterSpacing: '-0.02em',
+                  margin: 0,
+                  lineHeight: 1.1,
+                }}
+              >
                 {theme.title}
               </h1>
               <p style={{ marginTop: '24px', fontSize: '1.4rem', color: '#999999', fontWeight: 300 }}>
@@ -56,15 +155,72 @@ export default function CustomerLogin({ onSuccess, onClose }) {
               </p>
             </div>
 
+            {/* Mode Toggle */}
+            <div
+              style={{
+                display: 'flex',
+                gap: '24px',
+                borderBottom: '1px solid #333333',
+                paddingBottom: '24px',
+              }}
+            >
+              <button
+                onClick={() => { setMode('login'); setError('') }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: mode === 'login' ? '#ffffff' : '#666666',
+                  fontSize: '1rem',
+                  fontWeight: mode === 'login' ? 600 : 400,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  paddingBottom: '8px',
+                  borderBottom: mode === 'login' ? '2px solid #10b981' : 'none',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Login
+              </button>
+              <button
+                onClick={() => { setMode('signup'); setError('') }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: mode === 'signup' ? '#ffffff' : '#666666',
+                  fontSize: '1rem',
+                  fontWeight: mode === 'signup' ? 600 : 400,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  cursor: 'pointer',
+                  paddingBottom: '8px',
+                  borderBottom: mode === 'signup' ? '2px solid #10b981' : 'none',
+                  transition: 'all 0.3s ease',
+                }}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {/* Form */}
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '40px', maxWidth: '400px' }}>
-              
+              {/* Policy Number Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666666' }}>Username</label>
-                <input 
-                  type="text" 
-                  value={form.user} 
-                  onChange={(e) => setForm(prev => ({ ...prev, user: e.target.value }))}
-                  placeholder={theme.credentials.user}
+                <label
+                  style={{
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: '#666666',
+                  }}
+                >
+                  Policy Number
+                </label>
+                <input
+                  type="text"
+                  value={form.policyNumber}
+                  onChange={(e) => setForm(prev => ({ ...prev, policyNumber: e.target.value }))}
+                  placeholder="e.g., POL1001"
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -73,19 +229,29 @@ export default function CustomerLogin({ onSuccess, onClose }) {
                     color: '#ffffff',
                     fontSize: '1.2rem',
                     outline: 'none',
-                    transition: 'border-color 0.3s ease'
+                    transition: 'border-color 0.3s ease',
                   }}
-                  onFocus={(e) => e.target.style.borderBottomColor = '#ffffff'}
-                  onBlur={(e) => e.target.style.borderBottomColor = '#333333'}
+                  onFocus={(e) => (e.target.style.borderBottomColor = '#ffffff')}
+                  onBlur={(e) => (e.target.style.borderBottomColor = '#333333')}
                 />
               </div>
 
+              {/* Password Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666666' }}>Password</label>
-                <input 
-                  type="password" 
-                  value={form.pass} 
-                  onChange={(e) => setForm(prev => ({ ...prev, pass: e.target.value }))}
+                <label
+                  style={{
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: '#666666',
+                  }}
+                >
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
                   placeholder="••••••••"
                   style={{
                     background: 'transparent',
@@ -95,14 +261,28 @@ export default function CustomerLogin({ onSuccess, onClose }) {
                     color: '#ffffff',
                     fontSize: '1.2rem',
                     outline: 'none',
-                    transition: 'border-color 0.3s ease'
+                    transition: 'border-color 0.3s ease',
                   }}
-                  onFocus={(e) => e.target.style.borderBottomColor = '#ffffff'}
-                  onBlur={(e) => e.target.style.borderBottomColor = '#333333'}
+                  onFocus={(e) => (e.target.style.borderBottomColor = '#ffffff')}
+                  onBlur={(e) => (e.target.style.borderBottomColor = '#333333')}
                 />
               </div>
 
-              {error && <div style={{ color: '#ff5555', fontSize: '0.9rem' }}>{error}</div>}
+              {/* Hint Text */}
+              {mode === 'signup' && (
+                <div style={{ fontSize: '0.9rem', color: '#666666', marginTop: '-32px' }}>
+                  {!error && (
+                    <p>Your account will be created with this policy number. Password will be "admin" for testing.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Error Message */}
+              {error && (
+                <div style={{ color: '#ff5555', fontSize: '0.9rem' }}>
+                  {error}
+                </div>
+              )}
 
               <style>{`
                 .water-btn {
@@ -142,26 +322,28 @@ export default function CustomerLogin({ onSuccess, onClose }) {
                   color: #1c1d20;
                   border-color: #ffffff;
                 }
+                .water-btn:disabled {
+                  opacity: 0.6;
+                  cursor: not-allowed;
+                }
                 .back-btn-cs {
-                    border-color: #333;
-                    color: #999;
+                  border-color: #333;
+                  color: #999;
                 }
                 .back-btn-cs:hover {
-                    color: #1c1d20;
-                    border-color: #ffffff;
+                  color: #1c1d20;
+                  border-color: #ffffff;
                 }
               `}</style>
-              
+
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-start', width: '100%', gap: '16px' }}>
                 <button className="water-btn" type="submit" disabled={authenticating}>
-                  <span style={{ position: 'relative', zIndex: 2, pointerEvents: 'none' }}>{authenticating ? 'Verifying...' : 'Enter'}</span>
+                  <span style={{ position: 'relative', zIndex: 2, pointerEvents: 'none' }}>
+                    {authenticating ? 'Verifying...' : mode === 'login' ? 'Enter' : 'Create Account'}
+                  </span>
                 </button>
                 {onClose && (
-                  <button 
-                    className="water-btn back-btn-cs" 
-                    type="button" 
-                    onClick={onClose} 
-                  >
+                  <button className="water-btn back-btn-cs" type="button" onClick={onClose}>
                     <span style={{ position: 'relative', zIndex: 2, pointerEvents: 'none' }}>Back</span>
                   </button>
                 )}
@@ -171,24 +353,28 @@ export default function CustomerLogin({ onSuccess, onClose }) {
         </div>
 
         {/* Right pane: Color gradient */}
-        <div style={{ 
-          flex: 1, 
-          background: theme.gradient, 
-          position: 'relative', 
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}>
+        <div
+          style={{
+            flex: 1,
+            background: theme.gradient,
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {/* Inner glow effect utilizing theme accent */}
-          <div style={{ 
-            position: 'absolute', 
-            width: '150%', 
-            height: '150%', 
-            background: `radial-gradient(circle at center, ${theme.accent} 0%, transparent 60%)`, 
-            opacity: 0.15, 
-            filter: 'blur(60px)' 
-          }} />
+          <div
+            style={{
+              position: 'absolute',
+              width: '150%',
+              height: '150%',
+              background: `radial-gradient(circle at center, ${theme.accent} 0%, transparent 60%)`,
+              opacity: 0.15,
+              filter: 'blur(60px)',
+            }}
+          />
         </div>
       </div>
     </RoleTransition>

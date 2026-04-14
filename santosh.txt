@@ -8,3 +8,23 @@ There are 7 main pages/routes that load on the UI based on your App.jsx routing:
 /claim — CustomerDashboard (claim form, initialAction="new")
 /track — CustomerDashboard (claim tracking, initialAction="track")
 There is also a catch-all route that redirects any unknown path to /.
+
+Fields needed
+Garage Name & Address: 
+Contact Information:
+GSTIN (Goods and Services Tax Identification Number): 
+Invoice Number: 
+Invoice Date: 
+Customer Name: 
+Vehicle Registration Number: 
+Vehicle Make & Model: (e.g., Tata Nexon)
+Odometer Reading: 
+Serial Number (S.No):
+Part Description:
+HSN Code (Harmonized System of Nomenclature):
+Quantity Unit Price: Total Part Amount:
+Service Description: Labor Amount: Subtotals:
+Tax Breakdown: 
+total Estimated / Invoice Amount: 
+Authorized Signatory / Stamp: 
+Customer Signature:

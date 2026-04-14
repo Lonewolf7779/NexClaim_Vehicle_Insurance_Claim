@@ -56,7 +56,7 @@ def enforce_watch_root_policy(keep_xml_path: Optional[str] = None) -> None:
         continue
 
 def extract_policy_fields(root: ET.Element) -> dict:
-    """Extract specific 12 fields from <PolicyConfig> root, with type conversions."""
+    """Extract specific 16 fields from <PolicyConfig> root, with type conversions."""
     fields = {}
     field_map = {
         'policy_number': 'PolicyNumber',
@@ -70,7 +70,11 @@ def extract_policy_fields(root: ET.Element) -> dict:
         'aadhar_number': 'AadharNumber',
         'pan_number': 'PanNumber',
         'driving_license_number': 'DrivingLicenseNumber',
-        'rc_number': 'RcNumber'
+        'rc_number': 'RcNumber',
+        'chassis_number': 'ChassisNumber',
+        'engine_number': 'EngineNumber',
+        'policy_type': 'PolicyType',
+        'has_zero_depreciation': 'HasZeroDepreciation'
     }
     
     for key, tag in field_map.items():
@@ -80,6 +84,8 @@ def extract_policy_fields(root: ET.Element) -> dict:
         
         value = elem.text.strip()
         if key == 'is_active':
+            fields[key] = value.lower() in ('true', 'yes', '1', 't')
+        elif key == 'has_zero_depreciation':
             fields[key] = value.lower() in ('true', 'yes', '1', 't')
         elif key == 'idv_amount':
             try:

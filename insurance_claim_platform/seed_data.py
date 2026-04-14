@@ -36,7 +36,11 @@ def create_seed_data():
                 aadhar_number="1234 5678 9012",
                 pan_number="ABCDE1234F",
                 driving_license_number="MH01-2020-123456",
-                rc_number="MH01-2020-123456"
+                rc_number="MH01-2020-123456",
+                chassis_number="MA3EN6HT0HJ123456",
+                engine_number="2TR2DYE567890",
+                policy_type="COMPREHENSIVE",
+                has_zero_depreciation=False
             ),
             Policy(
                 policy_number="POL-2024-002",
@@ -50,7 +54,11 @@ def create_seed_data():
                 aadhar_number="9876 5432 1098",
                 pan_number="FGHIJ5678K",
                 driving_license_number="DL01-2021-234567",
-                rc_number="DL01-2021-234567"
+                rc_number="DL01-2021-234567",
+                chassis_number="MA3ET6HT1HJ234567",
+                engine_number="L13JED890123",
+                policy_type="COMPREHENSIVE",
+                has_zero_depreciation=True
             ),
             Policy(
                 policy_number="POL-2024-003",
@@ -64,7 +72,11 @@ def create_seed_data():
                 aadhar_number="4567 8901 2345",
                 pan_number="KLMNO9012P",
                 driving_license_number="KA01-2019-345678",
-                rc_number="KA01-2019-345678"
+                rc_number="KA01-2019-345678",
+                chassis_number="MAT12345JH345678",
+                engine_number="G4LA345678",
+                policy_type="THIRD_PARTY",
+                has_zero_depreciation=False
             ),
             Policy(
                 policy_number="POL-2024-004",
@@ -78,7 +90,11 @@ def create_seed_data():
                 aadhar_number="1357 2468 9012",
                 pan_number="PQRST3456U",
                 driving_license_number="TN01-2022-456789",
-                rc_number="TN01-2022-456789"
+                rc_number="TN01-2022-456789",
+                chassis_number="WBADT43452G296260",
+                engine_number="N47D20A456789",
+                policy_type="COMPREHENSIVE",
+                has_zero_depreciation=True
             ),
             Policy(
                 policy_number="POL-2024-005",
@@ -92,7 +108,11 @@ def create_seed_data():
                 aadhar_number="8642 9753 1086",
                 pan_number="UVWXY7890Z",
                 driving_license_number="MH02-2020-567890",
-                rc_number="MH02-2020-567890"
+                rc_number="MH02-2020-567890",
+                chassis_number="MAT12345ET567890",
+                engine_number="K12M5234567",
+                policy_type="COMPREHENSIVE",
+                has_zero_depreciation=False
             ),
         ]
         

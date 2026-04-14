@@ -55,6 +55,10 @@ def seed_policies():
                 "pan_number": "ABCDE1234F",
                 "driving_license_number": "MH01-20190012345",
                 "rc_number": "MH01AB1234/2021",
+                "chassis_number": "MA3ET6HT9HJ123456",
+                "engine_number": "L13JED789012",
+                "policy_type": "COMPREHENSIVE",
+                "has_zero_depreciation": False
             },
             {
                 "policy_number": "POL1002",
@@ -69,6 +73,10 @@ def seed_policies():
                 "pan_number": "PQRST5678K",
                 "driving_license_number": "DL01-20180054321",
                 "rc_number": "DL01CD5678/2020",
+                "chassis_number": "WVWZZZ3CZ8E000001",
+                "engine_number": "2TR5DYE234567",
+                "policy_type": "COMPREHENSIVE",
+                "has_zero_depreciation": True
             },
             {
                 "policy_number": "POL1003",
@@ -83,6 +91,10 @@ def seed_policies():
                 "pan_number": "GHIJK9012M",
                 "driving_license_number": "GJ01-20190098765",
                 "rc_number": "GJ01EF9012/2019",
+                "chassis_number": "MAT12345ET678901",
+                "engine_number": "K12M5678901",
+                "policy_type": "THIRD_PARTY",
+                "has_zero_depreciation": False
             },
             {
                 "policy_number": "POL1004",
@@ -97,6 +109,10 @@ def seed_policies():
                 "pan_number": "LMNOP3456N",
                 "driving_license_number": "KA01-20170123456",
                 "rc_number": "KA01GH3456/2018",
+                "chassis_number": "MAT12345JH678901",
+                "engine_number": "G4LA234567",
+                "policy_type": "COMPREHENSIVE",
+                "has_zero_depreciation": False
             },
             {
                 "policy_number": "POL1005",
@@ -111,6 +127,10 @@ def seed_policies():
                 "pan_number": "QRSTU7890P",
                 "driving_license_number": "TN01-20180123456",
                 "rc_number": "TN01IJ7890/2020",
+                "chassis_number": "SKAF3A4901H003546",
+                "engine_number": "TQN12345678",
+                "policy_type": "COMPREHENSIVE",
+                "has_zero_depreciation": True
             },
         ]
         

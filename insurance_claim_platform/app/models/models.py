@@ -36,6 +36,23 @@ class Policy(Base):
     pan_number = Column(String, nullable=True)
     driving_license_number = Column(String, nullable=True)
     rc_number = Column(String, nullable=True)
+    
+    # -------------------------------------------------
+    # Vehicle Technical Identification Fields
+    # -------------------------------------------------
+    # Unique identifiers for vehicle components
+    # Used for comprehensive vehicle identification
+    # -------------------------------------------------
+    chassis_number = Column(String, unique=True, nullable=True)
+    engine_number = Column(String, unique=True, nullable=True)
+    
+    # -------------------------------------------------
+    # Policy Coverage Type Fields
+    # -------------------------------------------------
+    # Policy type and coverage options
+    # -------------------------------------------------
+    policy_type = Column(String, default='COMPREHENSIVE', nullable=False)
+    has_zero_depreciation = Column(Boolean, default=False, nullable=False)
 
 
 class Claim(Base):

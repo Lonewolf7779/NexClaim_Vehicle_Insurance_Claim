@@ -18,6 +18,8 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { claimService } from '../services/api'
 
+const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
+
 function CustomerClaimDetailPage() {
   // -------------------------------------------------
   // Router Hooks
@@ -168,7 +170,7 @@ function CustomerClaimDetailPage() {
     return (
       <div className="error">
         {error}
-        <button onClick={() => navigate('/my-claims')} className="back-btn">
+        <button onClick={() => navigate('/track')} className="back-btn">
           Back to My Claims
         </button>
       </div>
@@ -182,7 +184,7 @@ function CustomerClaimDetailPage() {
     return (
       <div className="not-found">
         Claim not found
-        <button onClick={() => navigate('/my-claims')} className="back-btn">
+        <button onClick={() => navigate('/track')} className="back-btn">
           Back to My Claims
         </button>
       </div>
@@ -193,10 +195,10 @@ function CustomerClaimDetailPage() {
   // Render Claim Details
   // -------------------------------------------------
   return (
-    <div className="customer-claim-detail">
+    <div className="customer-claim-detail" style={{ fontFamily: FONT_STACK }}>
       {/* Navigation */}
       <div className="details-header">
-        <button onClick={() => navigate('/my-claims')} className="back-btn">
+        <button onClick={() => navigate('/track')} className="back-btn">
           ← Back to My Claims
         </button>
         <h2>Claim Details: {claim.claim_number}</h2>

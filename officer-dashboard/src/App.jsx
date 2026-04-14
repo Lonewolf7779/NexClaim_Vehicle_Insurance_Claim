@@ -4,7 +4,11 @@ import './App.css'
 import Preloader from './components/Preloader'
 import LandingPage from './components/LandingPage'
 import OfficerDashboard from './pages/OfficerDashboard'
-import CustomerDashboard from './pages/CustomerDashboard'
+import CustomerDashboardNew from './pages/CustomerDashboardNew'
+import CustomerTrack from './pages/CustomerTrack'
+import CustomerFileClaim from './pages/CustomerFileClaim'
+import CustomerPolicyLocker from './pages/CustomerPolicyLocker'
+import CustomerGarageLocator from './pages/CustomerGarageLocator'
 import EscalationDashboard from './pages/EscalationDashboard'
 import SurveyorDashboard from './pages/SurveyorDashboard'
 import Login from './pages/Login'
@@ -269,7 +273,7 @@ function App() {
                 const targetPath = actionType === 'track' ? '/track' : '/claim'
                 requestCustomerLogin(targetPath)
               }}
-              onLoginClick={() => requestCustomerLogin('/dashboard')}
+              onLoginClick={() => requestCustomerLogin('/customer-dashboard')}
             />
           }
         />
@@ -298,10 +302,10 @@ function App() {
           }
         />
         <Route
-          path="/dashboard"
+          path="/customer-dashboard"
           element={
-            <CustomerGate target="/dashboard">
-              <CustomerDashboard onSwitchRole={handleLogout} onBackToLanding={handleLogout} initialAction={null} />
+            <CustomerGate target="/customer-dashboard">
+              <CustomerDashboardNew />
             </CustomerGate>
           }
         />
@@ -309,7 +313,7 @@ function App() {
           path="/claim"
           element={
             <CustomerGate target="/claim">
-              <CustomerDashboard onSwitchRole={handleLogout} onBackToLanding={handleLogout} initialAction="new" />
+              <CustomerFileClaim />
             </CustomerGate>
           }
         />
@@ -317,7 +321,23 @@ function App() {
           path="/track"
           element={
             <CustomerGate target="/track">
-              <CustomerDashboard onSwitchRole={handleLogout} onBackToLanding={handleLogout} initialAction="track" />
+              <CustomerTrack />
+            </CustomerGate>
+          }
+        />
+        <Route
+          path="/policy-locker"
+          element={
+            <CustomerGate target="/policy-locker">
+              <CustomerPolicyLocker />
+            </CustomerGate>
+          }
+        />
+        <Route
+          path="/garages"
+          element={
+            <CustomerGate target="/garages">
+              <CustomerGarageLocator />
             </CustomerGate>
           }
         />

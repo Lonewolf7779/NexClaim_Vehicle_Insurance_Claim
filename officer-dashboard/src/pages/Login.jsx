@@ -7,16 +7,12 @@ function Login() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
-  const { login } = useAuth()
+  const { loginCustomer } = useAuth()
 
   const handleSuccess = (payload) => {
-    if (payload?.policy) {
-      localStorage.setItem('policy_number', payload.policy)
-    }
-    if (payload?.vehicle) {
-      localStorage.setItem('vehicle_ref', payload.vehicle)
-    }
-    login('customer')
+    // The loginCustomer function has already been called in CustomerLogin
+    // and the session has been persisted to localStorage
+    // Just navigate to the next destination
     navigate(next, { replace: true })
   }
 

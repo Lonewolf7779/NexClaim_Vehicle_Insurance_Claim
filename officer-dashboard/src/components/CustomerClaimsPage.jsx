@@ -15,6 +15,9 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { claimService } from '../services/api'
+import { useAuth } from '../contexts/AuthContext'
+
+const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
 function CustomerClaimsPage() {
   // -------------------------------------------------
@@ -27,12 +30,15 @@ function CustomerClaimsPage() {
   // React Router navigation hook
   const navigate = useNavigate()
 
+  const { customerUser } = useAuth()
+  const policyNumber = customerUser?.policyNumber
+
   // -------------------------------------------------
   // Data Fetching Effect
   // -------------------------------------------------
   useEffect(() => {
     fetchClaims()
-  }, [])
+  }, [policyNumber])
 
   /**
    * Fetch all claims from the backend API
@@ -40,7 +46,7 @@ function CustomerClaimsPage() {
   const fetchClaims = async () => {
     try {
       setLoading(true)
-      const response = await claimService.getClaims()
+      const response = await claimService.getClaims(policyNumber ? { policy_number: policyNumber } : undefined)
       setClaims(response.data)
     } catch (err) {
       setError('Failed to load claims. Please try again.')
@@ -108,7 +114,7 @@ function CustomerClaimsPage() {
   // Render Claims Table
   // -------------------------------------------------
   return (
-    <div className="customer-claims-page">
+    <div className="customer-claims-page" style={{ fontFamily: FONT_STACK }}>
       <h2>My Claims</h2>
       
       <table className="claims-table">

@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { Zap, ArrowRight, ShieldCheck, Activity, CheckCircle2, ArrowUpRight } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -25,6 +27,9 @@ const LandingPage = ({ onAction, onLoginClick }) => {
   const imageBgRef = useRef(null);
   const parallaxImgRef2 = useRef(null);
   const marqueeRef = useRef(null);
+  
+  const { auth } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -414,11 +419,17 @@ const LandingPage = ({ onAction, onLoginClick }) => {
       <div className="custom-cursor" ref={cursorRef} />
 
       <nav className="premium-nav">
-        <a href="#" className="magnetic-wrap nav-brand" style={{ textDecoration: 'none', color: '#fff' }}>
-          <span className="magnetic-inner"></span>
+        <a href="#" className="magnetic-wrap nav-brand" style={{ textDecoration: 'none', color: '#fff', display: 'none' }}>
+          <span className="magnetic-inner">NexClaim</span>
         </a>
-        <div className="magnetic-wrap" onClick={onLoginClick} style={{ cursor: 'pointer' }}>
-          <span className="btn btn-secondary magnetic-inner" style={{ padding: '12px 24px', fontSize: '0.85rem' }}>Login <ArrowUpRight size={16} /></span>
+        <div 
+          className="magnetic-wrap" 
+          onClick={auth.customer ? () => navigate('/customer-dashboard') : onLoginClick} 
+          style={{ cursor: 'pointer', marginLeft: 'auto' }}
+        >
+          <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
+            {auth.customer ? 'ENTER DASHBOARD' : 'LOGIN / ACCESS PORTAL'} <ArrowRight size={16} />
+          </span>
         </div>
       </nav>
 
@@ -442,14 +453,19 @@ const LandingPage = ({ onAction, onLoginClick }) => {
           </p>
 
           <div className="button-group">
-            <button className="magnetic-wrap btn btn-primary" onClick={() => onAction('track')}>
-              <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                Track existing claim <div className="btn-icon"><ArrowRight size={20} /></div>
-              </span>
-            </button>
-            <button className="magnetic-wrap btn btn-secondary" onClick={() => onAction('new')}>
-              <span className="magnetic-inner">File a new claim</span>
-            </button>
+            {auth.customer ? (
+              <button className="magnetic-wrap btn btn-primary" onClick={() => navigate('/customer-dashboard')} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
+                <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  ENTER DASHBOARD <div className="btn-icon"><ArrowRight size={20} /></div>
+                </span>
+              </button>
+            ) : (
+              <button className="magnetic-wrap btn btn-primary" onClick={onLoginClick} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
+                <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  LOGIN / ACCESS PORTAL <div className="btn-icon"><ArrowRight size={20} /></div>
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </section>

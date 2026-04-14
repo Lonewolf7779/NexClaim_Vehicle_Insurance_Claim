@@ -48,6 +48,10 @@ def create_policy(
         existing_policy.pan_number = policy.pan_number
         existing_policy.driving_license_number = policy.driving_license_number
         existing_policy.rc_number = policy.rc_number
+        existing_policy.chassis_number = policy.chassis_number
+        existing_policy.engine_number = policy.engine_number
+        existing_policy.policy_type = policy.policy_type
+        existing_policy.has_zero_depreciation = policy.has_zero_depreciation
 
         db.commit()
         db.refresh(existing_policy)
@@ -65,7 +69,11 @@ def create_policy(
         aadhar_number=policy.aadhar_number,
         pan_number=policy.pan_number,
         driving_license_number=policy.driving_license_number,
-        rc_number=policy.rc_number
+        rc_number=policy.rc_number,
+        chassis_number=policy.chassis_number,
+        engine_number=policy.engine_number,
+        policy_type=policy.policy_type,
+        has_zero_depreciation=policy.has_zero_depreciation
     )
 
     db.add(db_policy)

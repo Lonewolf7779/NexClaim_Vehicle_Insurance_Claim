@@ -16,6 +16,10 @@ class PolicyBase(BaseModel):
     pan_number: Optional[str] = None
     driving_license_number: Optional[str] = None
     rc_number: Optional[str] = None
+    chassis_number: Optional[str] = None
+    engine_number: Optional[str] = None
+    policy_type: str = "COMPREHENSIVE"
+    has_zero_depreciation: bool = False
 
 
 

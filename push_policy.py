@@ -25,7 +25,11 @@ POLICY_PROFILES = [
         'aadhar_number': '834759102345',
         'pan_number': 'AABCS1234D',
         'driving_license_number': 'DL0120160001234',
-        'rc_number': 'DL01AB123456'
+        'rc_number': 'DL01AB123456',
+        'chassis_number': 'MA3TK67HHTJ123456',
+        'engine_number': 'K12M5289672',
+        'policy_type': 'COMPREHENSIVE',
+        'has_zero_depreciation': False
     },
     {
         'policy_holder_name': 'Priya Iyer',
@@ -38,7 +42,11 @@ POLICY_PROFILES = [
         'aadhar_number': '912340567890',
         'pan_number': 'BXYPI5678L',
         'driving_license_number': 'KA0520150009876',
-        'rc_number': 'KA05MG654321'
+        'rc_number': 'KA05MG654321',
+        'chassis_number': 'MAT12345KT678901',
+        'engine_number': 'G4LA987654',
+        'policy_type': 'COMPREHENSIVE',
+        'has_zero_depreciation': True
     },
     {
         'policy_holder_name': 'Rohit Verma',
@@ -51,10 +59,28 @@ POLICY_PROFILES = [
         'aadhar_number': '745612309876',
         'pan_number': 'CVAPR3456Q',
         'driving_license_number': 'MH1220140012345',
-        'rc_number': 'MH12CD987654'
+        'rc_number': 'MH12CD987654',
+        'chassis_number': 'JH2RC5904PM608904',
+        'engine_number': 'D15Z1234567',
+        'policy_type': 'COMPREHENSIVE',
+        'has_zero_depreciation': False
     },
     {
-        b
+        'policy_holder_name': 'Sneha Reddy',
+        'vehicle_number': 'AP01ST9234',
+        'vehicle_model': 'Skoda Kushaq',
+        'policy_start_date': '2025-02-01T00:00:00',
+        'policy_end_date': '2026-02-01T00:00:00',
+        'is_active': True,
+        'idv_amount': 650000.0,
+        'aadhar_number': '563214789012',
+        'pan_number': 'DVWXS1234R',
+        'driving_license_number': 'AP0120181234567',
+        'rc_number': 'AP01ST9234/2023',
+        'chassis_number': 'SKAF3A4901H803546',
+        'engine_number': 'TQN87654321',
+        'policy_type': 'THIRD_PARTY',
+        'has_zero_depreciation': False
     }
 ]
 
@@ -71,6 +97,10 @@ XML_FIELD_ORDER = [
     ('PanNumber', 'pan_number'),
     ('DrivingLicenseNumber', 'driving_license_number'),
     ('RcNumber', 'rc_number'),
+    ('ChassisNumber', 'chassis_number'),
+    ('EngineNumber', 'engine_number'),
+    ('PolicyType', 'policy_type'),
+    ('HasZeroDepreciation', 'has_zero_depreciation'),
 ]
 
 
@@ -117,7 +147,7 @@ def enforce_folder_policy(target_xml_name: str) -> None:
 
 
 def create_policy_xml(payload: dict) -> str:
-    """Create XML with 12 fields from the policy payload."""
+    """Create XML with 16 fields from the policy payload."""
     root = Element('PolicyConfig')
 
     for xml_tag, payload_key in XML_FIELD_ORDER:
@@ -145,7 +175,11 @@ def build_policy_payload(policy_number: str, profile: dict) -> dict:
         'aadhar_number': profile['aadhar_number'],
         'pan_number': profile['pan_number'],
         'driving_license_number': profile['driving_license_number'],
-        'rc_number': profile['rc_number']
+        'rc_number': profile['rc_number'],
+        'chassis_number': profile['chassis_number'],
+        'engine_number': profile['engine_number'],
+        'policy_type': profile['policy_type'],
+        'has_zero_depreciation': profile['has_zero_depreciation']
     }
 
 

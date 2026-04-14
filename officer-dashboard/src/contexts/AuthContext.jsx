@@ -4,22 +4,44 @@ const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState({ customer: false, officer: false, supreme: false, samurai: false })
+  const [customerUser, setCustomerUser] = useState(null)
 
   useEffect(() => {
-    // Forcing a fresh start so you can see the login page and preloaders again
-    localStorage.removeItem('auth_customer')
+    // Load customer session from localStorage on mount
+    const savedCustomerSession = localStorage.getItem('customer_session')
+    if (savedCustomerSession) {
+      try {
+        const parsedSession = JSON.parse(savedCustomerSession)
+        setCustomerUser(parsedSession)
+        setAuth(prev => ({ ...prev, customer: true }))
+      } catch (err) {
+        console.error('Failed to parse customer session:', err)
+        localStorage.removeItem('customer_session')
+      }
+    }
+
+    // Forcing officer roles to fresh start on page load for testing
     localStorage.removeItem('auth_officer')
     localStorage.removeItem('auth_supreme')
     localStorage.removeItem('auth_samurai')
-
-    const initial = {
-      customer: false,
-      officer: false,
-      supreme: false,
-      samurai: false
-    }
-    setAuth(initial)
   }, [])
+
+  const loginCustomer = (policyNumber, policeholderName) => {
+    const session = {
+      policyNumber,
+      policeholderName,
+      loginTime: new Date().toISOString()
+    }
+    localStorage.setItem('customer_session', JSON.stringify(session))
+    setCustomerUser(session)
+    setAuth(prev => ({ ...prev, customer: true }))
+  }
+
+  const logoutCustomer = () => {
+    localStorage.removeItem('customer_session')
+    setCustomerUser(null)
+    setAuth(prev => ({ ...prev, customer: false }))
+  }
 
   const login = (role) => {
     localStorage.setItem(`auth_${role}`, 'true')
@@ -36,11 +58,21 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('auth_officer')
     localStorage.removeItem('auth_supreme')
     localStorage.removeItem('auth_samurai')
+    localStorage.removeItem('customer_session')
+    setCustomerUser(null)
     setAuth({ customer: false, officer: false, supreme: false, samurai: false })
   }
 
   return (
-    <AuthContext.Provider value={{ auth, login, logout, setRole }}>
+    <AuthContext.Provider value={{ 
+      auth, 
+      login, 
+      logout, 
+      setRole,
+      customerUser,
+      loginCustomer,
+      logoutCustomer
+    }}>
       {children}
     </AuthContext.Provider>
   )
