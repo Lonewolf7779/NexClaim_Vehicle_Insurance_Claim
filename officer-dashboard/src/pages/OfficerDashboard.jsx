@@ -2,6 +2,15 @@ import React, { useState, useEffect, useRef } from 'react'
 import { claimService, policyService } from '../services/api'
 import gsap from 'gsap'
 
+const REQUEST_DOCUMENT_TYPE_OPTIONS = [
+  'DRIVING_LICENSE',
+  'RC_BOOK',
+  'BANK_DETAILS',
+  'FIR',
+  'REPAIR_ESTIMATE',
+  'DAMAGE_PHOTOS'
+]
+
 // Section Card wrapper for workflow sections
 const SectionCard = ({ number, title, children, color = '#ffffff' }) => (
   <div style={{ marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#111', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
@@ -69,6 +78,13 @@ function OfficerDashboard({ onSwitchRole }) {
 
   // Document preview modal
   const [previewDoc, setPreviewDoc] = useState(null)
+
+  // Request Additional Documents modal
+  const [requestDocsOpen, setRequestDocsOpen] = useState(false)
+  const [requestDocsTypes, setRequestDocsTypes] = useState([])
+  const [requestDocsReason, setRequestDocsReason] = useState('')
+  const [requestDocsSubmitting, setRequestDocsSubmitting] = useState(false)
+  const [requestDocsError, setRequestDocsError] = useState(null)
 
   // Extracted documents from backend
   const [claimDocuments, setClaimDocuments] = useState([])
@@ -183,6 +199,11 @@ function OfficerDashboard({ onSwitchRole }) {
     setSettlementType('cashless')
     setPreviewDoc(null)
     setClaimDocuments([])
+    setRequestDocsOpen(false)
+    setRequestDocsTypes([])
+    setRequestDocsReason('')
+    setRequestDocsSubmitting(false)
+    setRequestDocsError(null)
 
     try {
       const claimResponse = await claimService.getClaim(claim.id)
@@ -229,6 +250,55 @@ function OfficerDashboard({ onSwitchRole }) {
   // -----------------------------------------------
   // Action Handlers
   // -----------------------------------------------
+
+  const handleToggleRequestDocType = (docType) => {
+    setRequestDocsTypes((prev) => {
+      if (prev.includes(docType)) return prev.filter((t) => t !== docType)
+      return [...prev, docType]
+    })
+  }
+
+  const openRequestDocsModal = () => {
+    setRequestDocsError(null)
+    setRequestDocsOpen(true)
+  }
+
+  const closeRequestDocsModal = () => {
+    if (requestDocsSubmitting) return
+    setRequestDocsOpen(false)
+    setRequestDocsError(null)
+  }
+
+  const handleSubmitRequestDocs = async (e) => {
+    e.preventDefault()
+    if (!selectedClaim) return
+
+    const reason = requestDocsReason.trim()
+    if (requestDocsTypes.length === 0) {
+      setRequestDocsError('Select at least one missing document type.')
+      return
+    }
+    if (!reason) {
+      setRequestDocsError('Provide a reason for the customer.')
+      return
+    }
+
+    setRequestDocsSubmitting(true)
+    setRequestDocsError(null)
+    try {
+      const payload = { document_types: requestDocsTypes, reason }
+      await claimService.requestDocuments(selectedClaim.id, payload)
+      await refreshClaimData(selectedClaim.id)
+      setRequestDocsOpen(false)
+      setRequestDocsTypes([])
+      setRequestDocsReason('')
+    } catch (err) {
+      const message = err.response?.data?.detail || err.message || 'Failed to request documents.'
+      setRequestDocsError(message)
+    } finally {
+      setRequestDocsSubmitting(false)
+    }
+  }
 
   // Section 2: Policy Validation → SUBMITTED → UNDER_REVIEW
   const handleValidatePolicy = async () => {
@@ -559,6 +629,7 @@ function OfficerDashboard({ onSwitchRole }) {
   const isTerminal = status === 'REJECTED' || status === 'CLOSED'
   const canReview = ['UNDER_REVIEW', 'SURVEY_COMPLETED', 'READY_FOR_REVIEW'].includes(status)
   const canDecide = ['UNDER_REVIEW', 'SURVEY_COMPLETED', 'READY_FOR_REVIEW'].includes(status)
+  const canRequestDocuments = ['UNDER_REVIEW', 'SUBMITTED'].includes(status)
 
   // Reusable styles for dark brutalist aesthetic
   const btnPrimary = { padding: '12px 24px', cursor: 'pointer', backgroundColor: '#fff', color: '#0d0d0d', border: 'none', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
@@ -1597,10 +1668,23 @@ function OfficerDashboard({ onSwitchRole }) {
             </h2>
             <p style={{ margin: '16px 0 0', color: '#a3a3a3', fontSize: '18px', letterSpacing: '0.05em' }}>{selectedClaim.claim_number}</p>
           </div>
-          <button onClick={handleBackToQueue}
-            style={{ ...btnOutline }}>
-            RETURN TO QUEUE
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {canRequestDocuments && (
+              <button
+                onClick={openRequestDocsModal}
+                disabled={loading}
+                onMouseEnter={hoverEffect}
+                onMouseLeave={leaveEffect}
+                style={{ ...btnWarning, padding: '12px 20px', fontSize: '12px', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+              >
+                REQUEST DOCUMENTS
+              </button>
+            )}
+            <button onClick={handleBackToQueue}
+              style={{ ...btnOutline }}>
+              RETURN TO QUEUE
+            </button>
+          </div>
         </div>
 
         {/* Error/Success messages */}
@@ -1612,6 +1696,15 @@ function OfficerDashboard({ onSwitchRole }) {
         {successMessage && (
           <div style={{ color: '#10b981', padding: '16px', marginBottom: '24px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)' }}>
             <strong>SUCCESS /</strong> {successMessage}
+          </div>
+        )}
+
+        {/* DOCUMENT_REQUIRED Banner */}
+        {status === 'DOCUMENT_REQUIRED' && (
+          <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '18px 20px', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
+            <span style={{ color: '#f59e0b', fontWeight: '800', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Waiting on Customer: Documents Requested.
+            </span>
           </div>
         )}
 
@@ -1640,6 +1733,95 @@ function OfficerDashboard({ onSwitchRole }) {
 
         {/* Timeline */}
         {renderTimeline()}
+
+        {/* Request Additional Documents Modal */}
+        {requestDocsOpen && (
+          <div
+            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, backdropFilter: 'blur(10px)', padding: '24px' }}
+            onClick={closeRequestDocsModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Request Additional Documents"
+          >
+            <div
+              style={{ backgroundColor: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '28px', width: 'min(860px, 96vw)', maxHeight: '90vh', overflow: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '22px' }}>
+                <div>
+                  <h3 style={{ margin: 0, color: '#fff', fontFamily: "'Bebas Neue', Oswald, sans-serif", fontSize: '2rem', letterSpacing: '0.06em' }}>REQUEST_DOCUMENTS</h3>
+                  <p style={{ margin: '10px 0 0', color: '#a3a3a3', fontSize: '14px', letterSpacing: '0.04em' }}>Select missing document types and provide a clear reason.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeRequestDocsModal}
+                  disabled={requestDocsSubmitting}
+                  onMouseEnter={hoverEffect}
+                  onMouseLeave={leaveEffect}
+                  style={{ ...btnOutline, opacity: requestDocsSubmitting ? 0.4 : 1, cursor: requestDocsSubmitting ? 'not-allowed' : 'pointer' }}
+                >
+                  CANCEL
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitRequestDocs}>
+                <div style={{ marginBottom: '22px' }}>
+                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>MISSING DOCUMENT TYPES</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {REQUEST_DOCUMENT_TYPE_OPTIONS.map((docType) => {
+                      const checked = requestDocsTypes.includes(docType)
+                      return (
+                        <label
+                          key={docType}
+                          style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.08)', backgroundColor: checked ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)', cursor: requestDocsSubmitting ? 'not-allowed' : 'pointer', opacity: requestDocsSubmitting ? 0.6 : 1 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleToggleRequestDocType(docType)}
+                            disabled={requestDocsSubmitting}
+                            style={{ width: '18px', height: '18px', accentColor: '#ffffff' }}
+                          />
+                          <span style={{ color: '#fff', fontWeight: '800', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{docType.replace(/_/g, ' ')}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '18px' }}>
+                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REASON</label>
+                  <textarea
+                    value={requestDocsReason}
+                    onChange={(e) => setRequestDocsReason(e.target.value)}
+                    rows={5}
+                    placeholder='E.g., "Please provide a clear picture of your Driving License and a cancelled cheque for NEFT transfer."'
+                    disabled={requestDocsSubmitting}
+                    style={{ ...brutalInput, resize: 'vertical', minHeight: '130px', opacity: requestDocsSubmitting ? 0.6 : 1 }}
+                  />
+                </div>
+
+                {requestDocsError && (
+                  <div style={{ color: '#ef4444', padding: '16px', marginBottom: '18px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    <strong>ERROR:</strong> {requestDocsError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    type="submit"
+                    disabled={requestDocsSubmitting}
+                    onMouseEnter={!requestDocsSubmitting ? hoverEffect : null}
+                    onMouseLeave={!requestDocsSubmitting ? leaveEffect : null}
+                    style={{ ...btnPrimary, opacity: requestDocsSubmitting ? 0.4 : 1, cursor: requestDocsSubmitting ? 'not-allowed' : 'pointer' }}
+                  >
+                    {requestDocsSubmitting ? 'REQUESTING...' : 'SEND REQUEST'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

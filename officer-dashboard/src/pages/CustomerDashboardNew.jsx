@@ -697,7 +697,15 @@ const CustomerDashboardNew = () => {
   ];
 
   return (
-    <div className="customer-dashboard" ref={dashboardRef}>
+    <div
+      className="customer-dashboard"
+      ref={dashboardRef}
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#050505',
+        color: '#ffffff'
+      }}
+    >
       <div className="noise-overlay" />
       <div className="custom-cursor" ref={cursorRef} />
 

@@ -664,6 +664,8 @@ section h3 {
   align-items: center;
   justify-content: center;
   font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+  z-index: 0;
+  isolation: isolate;
 }
 
 .water-btn::before {
@@ -676,7 +678,7 @@ section h3 {
   background: #ffffff;
   border-radius: 50% 50% 0 0;
   transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.5s ease;
-  z-index: 0;
+  z-index: -1;
 }
 
 .water-btn:hover::before {
@@ -697,6 +699,97 @@ section h3 {
 .water-btn--sm {
   padding: 12px 28px;
   font-size: 0.9rem;
+}
+
+/* -------------------------------------------------
+   Customer Utility Bar (Back + Logout Pill)
+   ------------------------------------------------- */
+
+.nx-customer-utility-bar {
+  position: fixed;
+  top: 28px;
+  left: 6vw;
+  right: 6vw;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  pointer-events: none;
+}
+
+.nx-customer-utility-bar > * {
+  pointer-events: auto;
+}
+
+/* Guard against aggressive page-level resets (e.g., CustomerDashboardNew) */
+.nx-customer-utility-bar .water-btn {
+  padding: 12px 28px;
+}
+
+.nx-avatar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  max-width: 48px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s ease, border-color 0.3s ease;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+  letter-spacing: 0.01em;
+  font-size: 0.92rem;
+}
+
+.nx-customer-utility-bar .nx-avatar-pill {
+  padding: 10px 14px;
+}
+
+.nx-avatar-pill:hover {
+  max-width: 360px;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.nx-avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: #050505;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  flex: 0 0 auto;
+}
+
+.nx-avatar-text {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.nx-avatar-pill:hover .nx-avatar-text {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+@media (max-width: 768px) {
+  .nx-customer-utility-bar {
+    top: 18px;
+    left: 24px;
+    right: 24px;
+  }
+  .nx-avatar-pill:hover {
+    max-width: 300px;
+  }
 }
 
 .back-btn-cs {
@@ -851,4 +944,111 @@ section h3 {
   .nx-split-3-1 {
     grid-template-columns: 1fr;
   }
+}
+
+/* -------------------------------------------------
+   Shared Dark Modal + Alerts (Officer workflows)
+   Uses NexClaim dark primitives without new colors
+   ------------------------------------------------- */
+
+.nx-alert-banner {
+  margin: 0 0 18px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #111111;
+  border: 1px solid #333333;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.nx-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.nx-modal {
+  width: min(760px, 100%);
+  background: #1c1d20;
+  border: 1px solid #333333;
+  border-radius: 16px;
+  padding: 22px 22px 18px;
+  color: #ffffff;
+}
+
+.nx-modal-header {
+  margin-bottom: 18px;
+}
+
+.nx-modal-title {
+  margin: 0;
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nx-modal-subtitle {
+  margin: 8px 0 0;
+  color: #999999;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.nx-form-row {
+  margin-bottom: 18px;
+}
+
+.nx-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .nx-checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nx-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #333333;
+  background: transparent;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.nx-checkbox-item input {
+  accent-color: #ffffff;
+}
+
+.nx-inline-error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.08);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.nx-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }

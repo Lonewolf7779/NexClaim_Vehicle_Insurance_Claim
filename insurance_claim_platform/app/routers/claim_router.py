@@ -77,31 +77,16 @@ def serialize_claim(db: Session, claim: Claim) -> dict:
 # -------------------------------------------------
 @router.post("/", response_model=ClaimResponse)
 def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(get_db)):
-    """
-    Create a new claim with generated claim number.
-    Default status is set to SUBMITTED.
-
-    Validation:
-      - A single policy CAN have multiple active claims.
-      - Only block exact duplicates for the same policy_id AND incident_date.
-    """
-    existing_same_incident_claim = (
-        db.query(Claim)
-        .filter(
-            Claim.policy_id == claim.policy_id,
-            Claim.incident_date == claim.incident_date,
-        )
-        .first()
-    )
-
-    if existing_same_incident_claim:
-        raise HTTPException(
-            status_code=409,
-            detail="A claim for this incident date already exists.",
-        )
-
+    # Block ONLY if the exact same policy and incident date exist
+    duplicate_claim = db.query(Claim).filter(
+        Claim.policy_id == claim.policy_id,
+        Claim.incident_date == claim.incident_date
+    ).first()
+    
+    if duplicate_claim:
+        raise HTTPException(status_code=409, detail="A claim for this exact incident date already exists.")
+        
     claim_number = f"CLM-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-
     db_claim = Claim(
         claim_number=claim_number,
         policy_id=claim.policy_id,
@@ -109,8 +94,6 @@ def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(g
         description=claim.description,
         status=ClaimStatus.SUBMITTED
     )
-
-    # Persist claim to database
     db.add(db_claim)
     db.commit()
     db.refresh(db_claim)

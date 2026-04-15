@@ -21,6 +21,15 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { claimService } from '../services/api'
 
+const REQUEST_DOCUMENT_TYPE_OPTIONS = [
+  'DRIVING_LICENSE',
+  'RC_BOOK',
+  'BANK_DETAILS',
+  'FIR',
+  'REPAIR_ESTIMATE',
+  'DAMAGE_PHOTOS'
+]
+
 function ClaimDetails() {
   // -------------------------------------------------
   // Router Hooks
@@ -41,6 +50,15 @@ function ClaimDetails() {
   const [error, setError] = useState(null)
 
   // -------------------------------------------------
+  // Request Additional Documents (Officer Action)
+  // -------------------------------------------------
+  const [requestDocsOpen, setRequestDocsOpen] = useState(false)
+  const [requestDocsTypes, setRequestDocsTypes] = useState([])
+  const [requestDocsReason, setRequestDocsReason] = useState('')
+  const [requestDocsSubmitting, setRequestDocsSubmitting] = useState(false)
+  const [requestDocsError, setRequestDocsError] = useState(null)
+
+  // -------------------------------------------------
   // Data Fetching Effect
   // -------------------------------------------------
   // Runs when component mounts or ID changes
@@ -49,6 +67,72 @@ function ClaimDetails() {
   useEffect(() => {
     fetchClaimData()
   }, [id])
+
+  const canRequestAdditionalDocuments =
+    claim?.status === 'UNDER_REVIEW' || claim?.status === 'SUBMITTED'
+
+  const handleToggleRequestDocType = (docType) => {
+    setRequestDocsTypes((prev) => {
+      if (prev.includes(docType)) {
+        return prev.filter((t) => t !== docType)
+      }
+      return [...prev, docType]
+    })
+  }
+
+  const openRequestDocs = () => {
+    setRequestDocsError(null)
+    setRequestDocsOpen(true)
+  }
+
+  const closeRequestDocs = () => {
+    if (requestDocsSubmitting) return
+    setRequestDocsOpen(false)
+    setRequestDocsError(null)
+  }
+
+  const handleSubmitRequestDocs = async (e) => {
+    e.preventDefault()
+
+    const reason = requestDocsReason.trim()
+    if (requestDocsTypes.length === 0) {
+      setRequestDocsError('Please select at least one missing document type.')
+      return
+    }
+    if (!reason) {
+      setRequestDocsError('Please provide a reason for the document request.')
+      return
+    }
+
+    try {
+      setRequestDocsSubmitting(true)
+      setRequestDocsError(null)
+
+      const payload = {
+        document_types: requestDocsTypes,
+        reason
+      }
+
+      await claimService.requestDocuments(id, payload)
+
+      // Refresh claim so UI reflects DOCUMENT_REQUIRED status
+      const claimResponse = await claimService.getClaim(id)
+      setClaim(claimResponse.data)
+
+      setRequestDocsOpen(false)
+      setRequestDocsTypes([])
+      setRequestDocsReason('')
+    } catch (err) {
+      const message =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to request additional documents.'
+      setRequestDocsError(message)
+    } finally {
+      setRequestDocsSubmitting(false)
+    }
+  }
 
   /**
    * Fetch all claim-related data from backend
@@ -145,6 +229,8 @@ function ClaimDetails() {
   const getStatusBadgeClass = (status) => {
     const statusClasses = {
       'SUBMITTED': 'badge-gray',
+      'UNDER_REVIEW': 'badge-orange',
+      'DOCUMENT_REQUIRED': 'badge-orange',
       'PROCESSING': 'badge-blue',
       'READY_FOR_REVIEW': 'badge-orange',
       'APPROVED': 'badge-green',
@@ -220,6 +306,13 @@ function ClaimDetails() {
         </button>
         <h2>Claim Details: {claim.claim_number}</h2>
       </div>
+
+      {/* Document Requested Banner */}
+      {claim.status === 'DOCUMENT_REQUIRED' && (
+        <div className="nx-alert-banner" role="status">
+          Waiting on Customer: Documents Requested.
+        </div>
+      )}
 
       {/* Claim Summary Section */}
       <section className="claim-summary">
@@ -409,15 +502,100 @@ function ClaimDetails() {
               </button>
             </>
           )}
+
+          {/* Request Additional Documents */}
+          {canRequestAdditionalDocuments && (
+            <button
+              type="button"
+              onClick={openRequestDocs}
+              disabled={actionLoading}
+              className="water-btn water-btn--sm"
+              style={{ position: 'relative', zIndex: 1 }}
+            >
+              Request Additional Documents
+            </button>
+          )}
           
           {/* Show message for non-actionable statuses */}
-          {claim.status !== 'READY_FOR_REVIEW' && (
+          {claim.status !== 'READY_FOR_REVIEW' && !canRequestAdditionalDocuments && (
             <p className="no-actions">
               No actions available. Claim is in {claim.status} status.
             </p>
           )}
         </div>
       </section>
+
+      {/* Request Documents Modal */}
+      {requestDocsOpen && (
+        <div className="nx-modal-overlay" role="dialog" aria-modal="true" aria-label="Request Additional Documents">
+          <div className="nx-modal">
+            <div className="nx-modal-header">
+              <h3 className="nx-modal-title">Request Additional Documents</h3>
+              <p className="nx-modal-subtitle">Select missing documents and provide a clear reason for the customer.</p>
+            </div>
+
+            <form onSubmit={handleSubmitRequestDocs}>
+              <div className="nx-form-row">
+                <label className="nx-label">Missing Document Types</label>
+                <div className="nx-checkbox-grid">
+                  {REQUEST_DOCUMENT_TYPE_OPTIONS.map((docType) => {
+                    const checked = requestDocsTypes.includes(docType)
+                    return (
+                      <label key={docType} className="nx-checkbox-item">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleRequestDocType(docType)}
+                          disabled={requestDocsSubmitting}
+                        />
+                        <span>{docType.replace(/_/g, ' ')}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="nx-form-row">
+                <label className="nx-label" htmlFor="request-docs-reason">Reason</label>
+                <textarea
+                  id="request-docs-reason"
+                  className="nx-textarea"
+                  value={requestDocsReason}
+                  onChange={(e) => setRequestDocsReason(e.target.value)}
+                  placeholder='E.g., "Please provide a clear picture of your Driving License and a cancelled cheque for NEFT transfer."'
+                  disabled={requestDocsSubmitting}
+                />
+              </div>
+
+              {requestDocsError && (
+                <div className="nx-inline-error" role="alert">
+                  {requestDocsError}
+                </div>
+              )}
+
+              <div className="nx-modal-actions">
+                <button
+                  type="button"
+                  className="water-btn water-btn--sm back-btn-cs"
+                  onClick={closeRequestDocs}
+                  disabled={requestDocsSubmitting}
+                  style={{ position: 'relative', zIndex: 1 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="water-btn water-btn--sm"
+                  disabled={requestDocsSubmitting}
+                  style={{ position: 'relative', zIndex: 1 }}
+                >
+                  {requestDocsSubmitting ? 'Requesting…' : 'Request Documents'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -84,13 +84,13 @@ const LandingPage = ({ onAction, onLoginClick }) => {
 
       /* Hero Section */
       .hero-section {
-        position: relative; width: 100vw; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 16vh 6vw 12vh 6vw; overflow: hidden;
+        position: relative; width: 100vw; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 16vh 6vw 12vh 6vw; overflow: visible;
       }
       .hero-bg-wrapper { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
       .hero-bg-image { width: 100%; height: 130%; object-fit: cover; position: absolute; top: -15%; left: 0; will-change: transform; filter: brightness(0.9); }
       .hero-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.3) 50%, rgba(5,5,5,0.1) 100%); z-index: 1; pointer-events: none; }
       
-      .hero-content { position: relative; z-index: 10; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
+      .hero-content { position: relative; z-index: 60; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
       .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 2.5rem; }
       
       .hero-subtext { font-size: clamp(1.1rem, 1.5vw, 1.4rem); color: rgba(255, 255, 255, 0.7); line-height: 1.5; max-width: 600px; margin-bottom: 4rem; }
@@ -424,8 +424,8 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         <a href="#" className="magnetic-wrap nav-brand" style={{ textDecoration: 'none', color: '#fff', display: 'none' }}>
           <span className="magnetic-inner">NexClaim</span>
         </a>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-          {auth.customer && (
+        {auth.customer && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
             <div
               className="btn btn-secondary"
               style={{ padding: '14px 22px', fontSize: '0.85rem', fontWeight: 600 }}
@@ -438,18 +438,18 @@ const LandingPage = ({ onAction, onLoginClick }) => {
                 {customerName}
               </span>
             </div>
-          )}
 
-          <div
-            className="magnetic-wrap"
-            onClick={auth.customer ? () => navigate('/customer-dashboard') : onLoginClick}
-            style={{ cursor: 'pointer' }}
-          >
-            <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
-              {auth.customer ? 'ENTER DASHBOARD' : 'LOGIN / ACCESS PORTAL'} <ArrowRight size={16} />
-            </span>
+            <div
+              className="magnetic-wrap"
+              onClick={() => navigate('/customer-dashboard')}
+              style={{ cursor: 'pointer' }}
+            >
+              <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
+                ENTER DASHBOARD <ArrowRight size={16} />
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </nav>
 
       {/* Hero */}
