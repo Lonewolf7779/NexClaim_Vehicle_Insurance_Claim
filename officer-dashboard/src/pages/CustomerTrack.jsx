@@ -401,7 +401,7 @@ function CustomerTrack() {
                       <div style={badgeStyle}>{String(claim.status || '—')}</div>
                     </div>
 
-                    <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                       {claim.description || '—'}
                     </div>
                   </div>
@@ -449,7 +449,7 @@ function CustomerTrack() {
                         <div style={badgeStyle}>{currentStatus || '—'}</div>
                       </div>
 
-                      <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6 }}>
+                      <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                         {claimDetail.description || '—'}
                       </div>
 

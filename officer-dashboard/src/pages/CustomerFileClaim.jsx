@@ -47,6 +47,7 @@ function CustomerFileClaim() {
   // Step 1
   const [incidentType, setIncidentType] = useState('ACCIDENT')
   const [incidentDate, setIncidentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [thirdPartyInvolved, setThirdPartyInvolved] = useState('NO') // YES | NO
   const [incidentLocation, setIncidentLocation] = useState('')
   const [description, setDescription] = useState('')
 
@@ -54,13 +55,17 @@ function CustomerFileClaim() {
   const [driverName, setDriverName] = useState(policyHolderName || '')
   const [driverPhone, setDriverPhone] = useState('')
   const [driverLicenseNumber, setDriverLicenseNumber] = useState('')
+  const [firFiled, setFirFiled] = useState('NO') // YES | NO
+  const [policeStationName, setPoliceStationName] = useState('')
 
   // Step 3
   const [firFile, setFirFile] = useState(null)
-  const [evidenceFiles, setEvidenceFiles] = useState([])
+  const [repairEstimateFile, setRepairEstimateFile] = useState(null)
+  const [damagePhotoFiles, setDamagePhotoFiles] = useState([])
 
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [createdClaimId, setCreatedClaimId] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -142,10 +147,13 @@ function CustomerFileClaim() {
     if (!String(driverName || '').trim()) return 'Please enter the driver name.'
     if (!String(driverPhone || '').trim()) return 'Please enter the driver phone number.'
     if (!String(driverLicenseNumber || '').trim()) return 'Please enter the driver license number.'
+    if (firFiled === 'YES' && !String(policeStationName || '').trim()) return 'Please enter the police station name.'
     return ''
   }
 
   const validateStep3 = () => {
+    if (!repairEstimateFile) return 'Repair estimate / invoice upload is required.'
+    if (!Array.isArray(damagePhotoFiles) || damagePhotoFiles.length === 0) return 'Please upload at least one damage photo.'
     if (theftRequiresFir && !firFile) return 'FIR upload is required for theft claims.'
     return ''
   }
@@ -153,6 +161,9 @@ function CustomerFileClaim() {
   const buildClaimDescription = () => {
     const lines = []
     lines.push(`Incident type: ${incidentType}`)
+    lines.push(`Third-party involved: ${thirdPartyInvolved === 'YES' ? 'Yes' : 'No'}`)
+    lines.push(`FIR filed: ${firFiled === 'YES' ? 'Yes' : 'No'}`)
+    if (firFiled === 'YES' && policeStationName?.trim()) lines.push(`Police station: ${policeStationName.trim()}`)
     if (incidentLocation?.trim()) lines.push(`Location: ${incidentLocation.trim()}`)
     lines.push(`Driver name: ${driverName?.trim() || '—'}`)
     if (driverPhone?.trim()) lines.push(`Driver phone: ${driverPhone.trim()}`)
@@ -207,39 +218,48 @@ function CustomerFileClaim() {
     setSubmitting(true)
     setSubmitError('')
 
-    let claimId = null
-
     try {
-      const payload = {
-        policy_id: policySummary.id,
-        incident_date: incidentDate,
-        description: buildClaimDescription()
+      let claimId = createdClaimId
+
+      if (!claimId) {
+        const payload = {
+          policy_id: policySummary.id,
+          incident_date: incidentDate,
+          description: buildClaimDescription()
+        }
+
+        const response = await claimService.createClaim(payload)
+        claimId = response?.data?.id
+        if (!claimId) throw new Error('No claim ID returned')
+        setCreatedClaimId(claimId)
       }
-
-      const response = await claimService.createClaim(payload)
-      claimId = response?.data?.id
-      if (!claimId) throw new Error('No claim ID returned')
-
-      const existingHeader = response?.headers?.['x-existing-claim']
-      const existing = String(existingHeader || '').toLowerCase() === 'true'
 
       try {
         const uploads = []
-        if (theftRequiresFir && firFile) uploads.push(claimService.uploadFile(claimId, firFile, 'FIR'))
-        evidenceFiles.forEach((f) => {
+
+        if (repairEstimateFile) uploads.push(claimService.uploadFile(claimId, repairEstimateFile, 'REPAIR_ESTIMATE'))
+
+        ;(damagePhotoFiles || []).forEach((f) => {
           if (f) uploads.push(claimService.uploadFile(claimId, f, 'DAMAGE_PHOTOS'))
         })
-        if (uploads.length > 0) await Promise.all(uploads)
+
+        if (firFile) uploads.push(claimService.uploadFile(claimId, firFile, 'FIR'))
+
+        const results = await Promise.all(uploads)
+        const anyNon200 = results.some((r) => r?.status !== 200)
+        if (anyNon200) throw new Error('One or more uploads returned a non-200 response.')
       } catch (uploadErr) {
-        setSubmitError(`Claim submitted${existing ? ' (existing claim reused)' : ''}, but document upload failed: ${toReadableError(uploadErr)}`)
-        navigate('/track', { state: { claimId } })
+        setSubmitError(`Claim created, but document upload failed: ${toReadableError(uploadErr)}`)
         return
       }
 
       navigate('/track', { state: { claimId } })
     } catch (err) {
+      if (err?.response?.status === 409) {
+        setSubmitError(err?.response?.data?.detail || 'A claim for this incident date already exists.')
+        return
+      }
       setSubmitError(toReadableError(err, 'Failed to submit claim.'))
-      if (!claimId) return
     } finally {
       setSubmitting(false)
     }
@@ -294,6 +314,15 @@ function CustomerFileClaim() {
   }
 
   const nextButtonDisabled = submitting || loadingPolicy
+
+  const submitBlockedByRequiredUploads =
+    step === 3 &&
+    (
+      !repairEstimateFile ||
+      !Array.isArray(damagePhotoFiles) ||
+      damagePhotoFiles.length === 0 ||
+      (theftRequiresFir && !firFile)
+    )
 
   return (
     <div style={pageStyle}>
@@ -358,6 +387,14 @@ function CustomerFileClaim() {
                     </div>
 
                     <div>
+                      <label className="nx-label">Was a Third-Party involved?</label>
+                      <select value={thirdPartyInvolved} onChange={(e) => setThirdPartyInvolved(e.target.value)} className="nx-select">
+                        <option value="NO">No</option>
+                        <option value="YES">Yes</option>
+                      </select>
+                    </div>
+
+                    <div>
                       <label className="nx-label">Location (Optional)</label>
                       <input type="text" value={incidentLocation} onChange={(e) => setIncidentLocation(e.target.value)} className="nx-input" placeholder="City / Area" />
                     </div>
@@ -385,37 +422,69 @@ function CustomerFileClaim() {
                       <label className="nx-label">Driver License Number</label>
                       <input type="text" value={driverLicenseNumber} onChange={(e) => setDriverLicenseNumber(e.target.value)} className="nx-input" placeholder="DL number" />
                     </div>
+
+                    <div>
+                      <label className="nx-label">Was an FIR filed?</label>
+                      <select value={firFiled} onChange={(e) => setFirFiled(e.target.value)} className="nx-select">
+                        <option value="NO">No</option>
+                        <option value="YES">Yes</option>
+                      </select>
+                    </div>
+
+                    {firFiled === 'YES' && (
+                      <div>
+                        <label className="nx-label">Police Station Name</label>
+                        <input
+                          type="text"
+                          value={policeStationName}
+                          onChange={(e) => setPoliceStationName(e.target.value)}
+                          className="nx-input"
+                          placeholder="e.g., Jubilee Hills PS"
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 
                 {step === 3 && (
                   <>
-                    {theftRequiresFir && (
+                    <div>
+                      <label className="nx-label">Repair Estimate / Invoice (Required)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => setRepairEstimateFile(e.target.files?.[0] || null)}
+                        className="nx-file-input"
+                      />
+                      {repairEstimateFile && <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>Selected: {repairEstimateFile.name}</div>}
+                    </div>
+
+                    <div>
+                      <label className="nx-label">Damage Photos (Required)</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,image/*"
+                        onChange={(e) => setDamagePhotoFiles(Array.from(e.target.files || []))}
+                        className="nx-file-input"
+                      />
+                      {damagePhotoFiles.length > 0 && (
+                        <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>
+                          Selected: {damagePhotoFiles.map(f => f.name).join(', ')}
+                        </div>
+                      )}
+                    </div>
+
+                    {(theftRequiresFir || firFiled === 'YES') && (
                       <div>
-                        <label className="nx-label">FIR Upload (Required for Theft)</label>
+                        <label className="nx-label">FIR Upload {theftRequiresFir ? '(Required for Theft)' : '(Optional)'}</label>
                         <input type="file" accept=".pdf,image/*" onChange={(e) => setFirFile(e.target.files?.[0] || null)} className="nx-file-input" />
                         {firFile && <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>Selected: {firFile.name}</div>}
                       </div>
                     )}
 
-                    <div>
-                      <label className="nx-label">Additional Evidence (Optional)</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf,image/*"
-                        onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
-                        className="nx-file-input"
-                      />
-                      {evidenceFiles.length > 0 && (
-                        <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>
-                          Selected: {evidenceFiles.map(f => f.name).join(', ')}
-                        </div>
-                      )}
-                    </div>
-
                     <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.98rem', lineHeight: 1.6 }}>
-                      Documents upload after claim submission.
+                      Claim will be submitted first, then documents are uploaded.
                     </div>
                   </>
                 )}
@@ -425,7 +494,7 @@ function CustomerFileClaim() {
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between' }}>
                   <button
                     type="button"
-                    disabled={step === 1 || nextButtonDisabled}
+                    disabled={step === 1 || nextButtonDisabled || (step === 3 && !!createdClaimId)}
                     onClick={handleBack}
                     className="water-btn water-btn--sm back-btn-cs"
                   >
@@ -444,7 +513,7 @@ function CustomerFileClaim() {
                   ) : (
                     <button
                       type="submit"
-                      disabled={nextButtonDisabled}
+                      disabled={nextButtonDisabled || submitBlockedByRequiredUploads}
                       className="water-btn water-btn--sm"
                     >
                       {submitting ? 'Submitting…' : 'Submit Claim'}

@@ -80,22 +80,27 @@ def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(g
     """
     Create a new claim with generated claim number.
     Default status is set to SUBMITTED.
-    
-    Validation: A policy cannot have multiple active claims.
-    Active claims are those with status NOT IN (APPROVED, REJECTED).
+
+    Validation:
+      - A single policy CAN have multiple active claims.
+      - Only block exact duplicates for the same policy_id AND incident_date.
     """
-    # Check if there's already an active claim for this policy
-    existing_active_claim = db.query(Claim).filter(
-        Claim.policy_id == claim.policy_id,
-        Claim.status.notin_([ClaimStatus.APPROVED, ClaimStatus.REJECTED])
-    ).first()
-    
-    if existing_active_claim:
-        # Keep one-active-claim rule, but return current active claim so UI can continue gracefully.
-        response.headers["X-Existing-Claim"] = "true"
-        return serialize_claim(db, existing_active_claim)
-    
-    claim_number = f"CLM-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    existing_same_incident_claim = (
+        db.query(Claim)
+        .filter(
+            Claim.policy_id == claim.policy_id,
+            Claim.incident_date == claim.incident_date,
+        )
+        .first()
+    )
+
+    if existing_same_incident_claim:
+        raise HTTPException(
+            status_code=409,
+            detail="A claim for this incident date already exists.",
+        )
+
+    claim_number = f"CLM-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
     db_claim = Claim(
         claim_number=claim_number,
@@ -109,8 +114,6 @@ def create_claim(claim: ClaimCreate, response: Response, db: Session = Depends(g
     db.add(db_claim)
     db.commit()
     db.refresh(db_claim)
-
-    response.headers["X-Existing-Claim"] = "false"
     return serialize_claim(db, db_claim)
 
 

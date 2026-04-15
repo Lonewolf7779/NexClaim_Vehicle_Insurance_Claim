@@ -1,380 +1,292 @@
-// -------------------------------------------------
-// CustomerClaimDetailPage Component
-// -------------------------------------------------
-// Customer-facing detailed view of a single claim.
-// Features:
-//   - Fetches claim details and validation results
-//   - Displays claim summary with all metadata
-//   - Shows financial breakdown section (placeholder for future)
-//   - Renders simple timeline showing claim status progression
-//   - Displays validation results for transparency
-// State Management:
-//   - claim: Single claim object with full details
-//   - validationResults: Array of validation rule results
-//   - loading: Boolean for initial data fetch
-//   - error: String for error messages
-// -------------------------------------------------
-import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { claimService } from '../services/api'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
+const toReadableError = (err, fallback = 'Request failed. Please try again.') => {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  return err?.message || fallback
+}
+
+const formatDate = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString()
+}
+
+const formatDateTime = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleString()
+}
+
+const formatAmount = (value) => {
+  if (value === null || value === undefined || value === '') return '—'
+  const n = Number(value)
+  if (Number.isNaN(n)) return String(value)
+  return n.toLocaleString()
+}
+
+const fileNameFromPath = (path) => {
+  if (!path || typeof path !== 'string') return '—'
+  const parts = path.split('/')
+  return parts[parts.length - 1] || path
+}
+
 function CustomerClaimDetailPage() {
-  // -------------------------------------------------
-  // Router Hooks
-  // -------------------------------------------------
   const { id } = useParams()
   const navigate = useNavigate()
+  const { auth, customerUser } = useAuth()
 
-  // -------------------------------------------------
-  // State Management
-  // -------------------------------------------------
-  const [claim, setClaim] = useState(null)
-  const [validationResults, setValidationResults] = useState([])
-  const [documents, setDocuments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [docType, setDocType] = useState('INVOICE')
-  const [uploading, setUploading] = useState(false)
+  const policyNumber = customerUser?.policyNumber
 
-  // -------------------------------------------------
-  // Data Fetching Effect
-  // -------------------------------------------------
-  useEffect(() => {
-    fetchClaimData()
+  const claimId = useMemo(() => {
+    const n = Number(id)
+    return Number.isFinite(n) ? n : null
   }, [id])
 
-  /**
-   * Fetch claim details and validation results
-   */
-  const fetchClaimData = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const [claim, setClaim] = useState(null)
+  const [documents, setDocuments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-      // Fetch claim details
-      const claimResponse = await claimService.getClaim(id)
-      setClaim(claimResponse.data)
+  useEffect(() => {
+    if (!auth.customer) return
 
-      // Fetch validation results (may be empty)
+    let cancelled = false
+
+    const fetchData = async () => {
       try {
-        const validationResponse = await claimService.getValidationResults(id)
-        setValidationResults(validationResponse.data)
-      } catch (err) {
-        setValidationResults([])
-      }
-
-      // Fetch documents
-      try {
-        const documentsResponse = await claimService.getDocuments(id)
-        const validDocs = documentsResponse.data;
-        setDocuments(validDocs)
-      } catch (err) {
+        setLoading(true)
+        setError('')
+        setClaim(null)
         setDocuments([])
-        console.error('Doc Fetch Error:', err)
+
+        if (!claimId) {
+          setError('Invalid claim id.')
+          return
+        }
+
+        const [claimRes, docsRes] = await Promise.all([
+          claimService.getClaim(claimId),
+          claimService.getDocuments(claimId).catch(() => ({ data: [] }))
+        ])
+
+        if (cancelled) return
+        setClaim(claimRes.data)
+        setDocuments(Array.isArray(docsRes?.data) ? docsRes.data : [])
+      } catch (err) {
+        if (cancelled) return
+        setError(toReadableError(err, 'Failed to load claim details.'))
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-    } catch (err) {
-      setError('Failed to load claim details. Please try again.')
-      console.error('Error fetching claim:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  /**
-   * Get CSS class for status badge
-   */
-  const getStatusBadgeClass = (status) => {
-    const statusClasses = {
-      'SUBMITTED': 'badge-gray',
-      'PROCESSING': 'badge-blue',
-      'READY_FOR_REVIEW': 'badge-orange',
-      'APPROVED': 'badge-green',
-      'REJECTED': 'badge-red',
-      'ESCALATED': 'badge-purple'
-    }
-    return `status-badge ${statusClasses[status] || 'badge-gray'}`
-  }
-
-  /**
-   * Format currency value
-   */
-  const formatCurrency = (value) => {
-    if (value === null || value === undefined) return '—'
-    return `$${parseFloat(value).toFixed(2)}`
-  }
-
-  /**
-   * Define timeline steps based on claim status workflow
-   */
-  const getTimelineSteps = () => {
-    const steps = [
-      { key: 'SUBMITTED', label: 'Claim Submitted' },
-      { key: 'PROCESSING', label: 'Under Processing' },
-      { key: 'READY_FOR_REVIEW', label: 'Ready for Review' },
-      { key: 'APPROVED', label: 'Approved' }
-    ]
-    return steps
-  }
-
-  /**
-   * Determine if a timeline step is completed, current, or pending
-   */
-  const getStepStatus = (stepKey, currentStatus) => {
-    const statusOrder = ['SUBMITTED', 'PROCESSING', 'READY_FOR_REVIEW', 'APPROVED', 'REJECTED', 'ESCALATED']
-    const currentIndex = statusOrder.indexOf(currentStatus)
-    const stepIndex = statusOrder.indexOf(stepKey)
-
-    if (currentStatus === stepKey) return 'current'
-    if (stepIndex < currentIndex) return 'completed'
-    return 'pending'
-  }
-
-  /**
-   * Handle file upload for additional documents
-   */
-  const handleFileUpload = async (e) => {
-    e.preventDefault()
-    if (!selectedFile) {
-      alert('Please select a file to upload')
-      return
     }
 
-    try {
-      setUploading(true)
-      await claimService.uploadFile(id, selectedFile, docType)
-      alert('File uploaded successfully!')
-      setSelectedFile(null)
-      // Refresh the entire claim data including documents
-      await fetchClaimData()
-    } catch (err) {
-      alert(`Failed to upload file: ${err.message}`)
-    } finally {
-      setUploading(false)
+    fetchData()
+
+    return () => {
+      cancelled = true
     }
+  }, [auth.customer, claimId])
+
+  const pageStyle = {
+    minHeight: '100vh',
+    backgroundColor: '#1c1d20',
+    color: '#ffffff',
+    fontFamily: FONT_STACK,
+    padding: '10vh 6vw',
+    position: 'relative',
+    overflow: 'hidden'
   }
 
-  // -------------------------------------------------
-  // Render Loading State
-  // -------------------------------------------------
-  if (loading) {
-    return <div className="loading">Loading claim details...</div>
+  const contentStyle = {
+    position: 'relative',
+    zIndex: 1
   }
 
-  // -------------------------------------------------
-  // Render Error State
-  // -------------------------------------------------
-  if (error) {
-    return (
-      <div className="error">
-        {error}
-        <button onClick={() => navigate('/track')} className="back-btn">
-          Back to My Claims
-        </button>
-      </div>
-    )
+  const glowStyle = {
+    position: 'absolute',
+    right: '-20%',
+    top: '-30%',
+    width: '70%',
+    height: '70%',
+    background: 'radial-gradient(circle at center, rgba(16,185,129,0.18) 0%, transparent 60%)',
+    opacity: 0.9,
+    filter: 'blur(80px)',
+    pointerEvents: 'none',
+    zIndex: 0
   }
 
-  // -------------------------------------------------
-  // Render No Data State
-  // -------------------------------------------------
-  if (!claim) {
-    return (
-      <div className="not-found">
-        Claim not found
-        <button onClick={() => navigate('/track')} className="back-btn">
-          Back to My Claims
-        </button>
-      </div>
-    )
+  const cardStyle = {
+    padding: '28px 26px',
+    borderRadius: '18px',
+    background: 'rgba(255,255,255,0.015)',
+    border: '1px solid rgba(255,255,255,0.05)'
   }
 
-  // -------------------------------------------------
-  // Render Claim Details
-  // -------------------------------------------------
+  if (!auth.customer) return null
+
   return (
-    <div className="customer-claim-detail" style={{ fontFamily: FONT_STACK }}>
-      {/* Navigation */}
-      <div className="details-header">
-        <button onClick={() => navigate('/track')} className="back-btn">
-          ← Back to My Claims
-        </button>
-        <h2>Claim Details: {claim.claim_number}</h2>
-      </div>
+    <div style={pageStyle}>
+      <div className="nx-noise-overlay" />
+      <div style={glowStyle} />
 
-      {/* Claim Summary Section */}
-      <section className="claim-summary">
-        <h3>Claim Summary</h3>
-        <div className="summary-grid">
-          <div className="summary-item">
-            <label>Claim Number:</label>
-            <span>{claim.claim_number}</span>
+      <div style={contentStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 'clamp(3rem, 7vw, 7rem)', fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 0.95 }}>
+              Claim #{claim?.claim_number || claimId || '—'}
+            </h1>
+            <p style={{ marginTop: 18, marginBottom: 0, color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem', lineHeight: 1.5 }}>
+              Policy: {policyNumber || '—'}
+            </p>
           </div>
-          <div className="summary-item">
-            <label>Status:</label>
-            <span className={getStatusBadgeClass(claim.status)}>
-              {claim.status}
-            </span>
-          </div>
-          <div className="summary-item">
-            <label>Incident Date:</label>
-            <span>{new Date(claim.incident_date).toLocaleDateString()}</span>
-          </div>
-          <div className="summary-item">
-            <label>Submitted On:</label>
-            <span>{new Date(claim.created_at).toLocaleString()}</span>
-          </div>
-        </div>
-        <div className="description-box">
-          <label>Description:</label>
-          <p>{claim.description}</p>
-        </div>
-      </section>
 
-      {/* Financial Breakdown Section */}
-      <section className="financial-section">
-        <h3>Financial Breakdown</h3>
-        <div className="financial-grid">
-          <div className="financial-item">
-            <label>Claim Amount:</label>
-            <span>{formatCurrency(claim.claim_amount)}</span>
-          </div>
-          <div className="financial-item">
-            <label>Deductible:</label>
-            <span>{formatCurrency(claim.deductible)}</span>
-          </div>
-          <div className="financial-item">
-            <label>Final Payable:</label>
-            <span className="highlight-amount">
-              {formatCurrency(claim.final_payable_amount)}
-            </span>
-          </div>
-          <div className="financial-item">
-            <label>Payment Status:</label>
-            <span>{claim.payment_status || 'Pending'}</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Upload Additional Document Section */}
-      <section className="upload-section">
-        <h3>Upload Additional Document</h3>
-        <form onSubmit={handleFileUpload} className="upload-form">
-          <div className="upload-field">
-            <label>Document Type:</label>
-            <select value={docType} onChange={(e) => setDocType(e.target.value)}>
-              <option value="INVOICE">INVOICE</option>
-              <option value="CLAIM_FORM">CLAIM_FORM</option>
-              <option value="RC_BOOK">RC_BOOK</option>
-              <option value="DRIVING_LICENSE">DRIVING_LICENSE</option>
-            </select>
-          </div>
-          <div className="upload-field">
-            <label>Select File:</label>
-            <input 
-              type="file" 
-              onChange={(e) => setSelectedFile(e.target.files[0])} 
-            />
-          </div>
-          <button type="submit" disabled={uploading} className="upload-btn">
-            {uploading ? 'Uploading...' : 'Upload'}
+          <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/track')}>
+            Back to Tracking
           </button>
-        </form>
-      </section>
+        </div>
 
-      {/* Documents Section */}
-      <section className="documents-section">
-        <h3>Submitted Documents</h3>
-        {documents.length > 0 ? (
-          documents.map((doc, index) => (
-            <div key={index} className="document-item">
-              <p><strong>Document Type:</strong> {doc.document_type}</p>
-              <p><strong>Extracted At:</strong> {new Date(doc.extracted_at).toLocaleString()}</p>
-              {doc.file_path && (
-                <p>
-                  <a href={`http://localhost:8000${doc.file_path}`} target="_blank" rel="noopener noreferrer" className="view-doc-btn">
-                    View Document
-                  </a>
-                </p>
+        <div style={{ marginTop: 56 }}>
+          {loading && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading claim details…</div>}
+          {!loading && error && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{error}</div>}
+
+          {!loading && !error && claim && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18 }}>
+                <div style={cardStyle}>
+                  <div className="nx-label">Status</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 600, letterSpacing: '-0.01em' }}>
+                    {String(claim.status || '—')}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Incident Date</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                    {formatDate(claim.incident_date)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Submitted</div>
+                  <div style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                    {formatDateTime(claim.created_at)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Last Updated</div>
+                  <div style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                    {formatDateTime(claim.updated_at)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Estimated Amount</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                    {formatAmount(claim.estimated_amount)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Depreciation</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                    {formatAmount(claim.depreciation_amount)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Deductible</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                    {formatAmount(claim.deductible_amount)}
+                  </div>
+                </div>
+
+                <div style={cardStyle}>
+                  <div className="nx-label">Final Payable</div>
+                  <div style={{ fontSize: '1.55rem', fontWeight: 650, letterSpacing: '-0.02em' }}>
+                    {formatAmount(claim.final_payable)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={cardStyle}>
+                <div className="nx-label">Description</div>
+                <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.8)', fontSize: '1.05rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                  {claim.description || '—'}
+                </div>
+              </div>
+
+              {String(claim.status) === 'REJECTED' && (
+                <div style={{ ...cardStyle, border: '1px solid rgba(255,120,120,0.45)' }}>
+                  <div className="nx-label">Rejection Reason</div>
+                  <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                    {claim.rejection_reason || '—'}
+                  </div>
+                </div>
               )}
-              {doc.fields && doc.fields.length > 0 && (
-                <div className="document-fields">
-                  <h4>Fields:</h4>
-                  {doc.fields.map((field, fieldIndex) => (
-                    <div key={fieldIndex} className="field-item">
-                      <span><strong>Field Name:</strong> {field.field_name}</span>
-                      <span><strong>Field Value:</strong> {field.field_value}</span>
-                      <span><strong>Confidence Score:</strong> {field.confidence_score}</span>
+
+              <div style={cardStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <div style={{ fontSize: '0.85rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#666666' }}>
+                      Documents
                     </div>
-                  ))}
+                    <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)' }}>
+                      {documents.length > 0 ? `${documents.length} uploaded` : 'No documents uploaded yet'}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))
-        ) : (
-          <p>No documents available</p>
-        )}
-      </section>
 
-      {/* Timeline Section */}
-      <section className="timeline-section">
-        <h3>Claim Progress</h3>
-        <div className="timeline">
-          {getTimelineSteps().map((step, index) => {
-            const stepStatus = getStepStatus(step.key, claim.status)
-            return (
-              <div key={step.key} className={`timeline-step ${stepStatus}`}>
-                <div className="step-indicator">
-                  {stepStatus === 'completed' ? '✓' : 
-                   stepStatus === 'current' ? '●' : '○'}
-                </div>
-                <div className="step-label">{step.label}</div>
-                {index < getTimelineSteps().length - 1 && (
-                  <div className={`step-connector ${stepStatus}`}></div>
+                {documents.length > 0 && (
+                  <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+                    {documents.map((doc) => (
+                      <div
+                        key={doc?.id || `${doc?.document_type}-${doc?.file_path}`}
+                        style={{
+                          padding: '18px 18px',
+                          borderRadius: '14px',
+                          background: 'rgba(255,255,255,0.02)',
+                          border: '1px solid rgba(255,255,255,0.08)'
+                        }}
+                      >
+                        <div className="nx-label">{doc?.document_type || 'DOCUMENT'}</div>
+                        <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                          {fileNameFromPath(doc?.file_path)}
+                        </div>
+                        <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
+                          {formatDateTime(doc?.extracted_at)}
+                        </div>
+
+                        {doc?.file_path && (
+                          <div style={{ marginTop: 14 }}>
+                            <a
+                              className="water-btn water-btn--sm"
+                              href={`http://localhost:8000${doc.file_path}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              View
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-            )
-          })}
+            </div>
+          )}
         </div>
-        {(claim.status === 'REJECTED' || claim.status === 'ESCALATED') && (
-          <div className="status-notice">
-            {claim.status === 'REJECTED' 
-              ? 'This claim has been rejected.' 
-              : 'This claim has been escalated for further review.'}
-          </div>
-        )}
-      </section>
-
-      {/* Validation Results Section */}
-      <section className="validation-section">
-        <h3>Validation Results</h3>
-        {validationResults.length > 0 ? (
-          <table className="validation-table">
-            <thead>
-              <tr>
-                <th>Rule</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {validationResults.map((result, index) => (
-                <tr key={index}>
-                  <td>{result.rule_name}</td>
-                  <td>
-                    <span className={result.is_match ? 'badge-green' : 'badge-red'}>
-                      {result.is_match ? 'Passed' : 'Failed'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="no-data">Validation results not yet available.</p>
-        )}
-      </section>
+      </div>
     </div>
   )
 }
