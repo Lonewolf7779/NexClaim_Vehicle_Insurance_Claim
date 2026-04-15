@@ -641,3 +641,214 @@ section h3 {
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------------------------------------
+   NexClaim Customer UI Primitives
+   Matches CustomerLogin + Preloader aesthetic
+   ------------------------------------------------- */
+
+.water-btn {
+  position: relative;
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid #333333;
+  color: #ffffff;
+  padding: 16px 40px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.4s ease, border-color 0.4s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+}
+
+.water-btn::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  background: #ffffff;
+  border-radius: 50% 50% 0 0;
+  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.5s ease;
+  z-index: 0;
+}
+
+.water-btn:hover::before {
+  height: 100%;
+  border-radius: 0;
+}
+
+.water-btn:hover {
+  color: #1c1d20;
+  border-color: #ffffff;
+}
+
+.water-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.water-btn--sm {
+  padding: 12px 28px;
+  font-size: 0.9rem;
+}
+
+.back-btn-cs {
+  border-color: #333333;
+  color: #999999;
+}
+
+.back-btn-cs:hover {
+  color: #1c1d20;
+  border-color: #ffffff;
+}
+
+.nx-label {
+  display: block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #666666;
+  margin-bottom: 8px;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+}
+
+.nx-input,
+.nx-select,
+.nx-textarea,
+.nx-file-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #333333;
+  padding: 12px 0;
+  color: #ffffff;
+  font-size: 1.15rem;
+  outline: none;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+  transition: border-color 0.3s ease;
+}
+
+.nx-input:focus,
+.nx-select:focus,
+.nx-textarea:focus,
+.nx-file-input:focus {
+  border-bottom-color: #ffffff;
+}
+
+.nx-input::placeholder,
+.nx-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.nx-textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.nx-select {
+  appearance: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.7) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 55%,
+    calc(100% - 9px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.nx-select option {
+  background-color: #111111;
+  color: #ffffff;
+}
+
+.nx-input[type="date"] {
+  color-scheme: dark;
+}
+
+.nx-input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.8);
+}
+
+.nx-file-input {
+  color-scheme: dark;
+  font-size: 1rem;
+  padding: 14px 0;
+}
+
+.nx-file-input::file-selector-button {
+  margin-right: 14px;
+  background: transparent;
+  border: 1px solid #333333;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+}
+
+.nx-file-input::file-selector-button:hover {
+  background-color: #ffffff;
+  color: #1c1d20;
+  border-color: #ffffff;
+}
+
+.nx-file-input::-webkit-file-upload-button {
+  margin-right: 14px;
+  background: transparent;
+  border: 1px solid #333333;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+}
+
+.nx-file-input::-webkit-file-upload-button:hover {
+  background-color: #ffffff;
+  color: #1c1d20;
+  border-color: #ffffff;
+}
+
+.nx-name-gradient {
+  background: linear-gradient(45deg, #ffffff, #999999);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nx-noise-overlay {
+  position: absolute;
+  inset: 0;
+  background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.nx-split-3-1 {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .nx-split-3-1 {
+    grid-template-columns: 1fr;
+  }
+}

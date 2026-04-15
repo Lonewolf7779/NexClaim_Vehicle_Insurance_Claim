@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import RoleTransition from './RoleTransition'
 import { useAuth } from '../contexts/AuthContext'
 import Preloader from './Preloader'
+import { policyService } from '../services/api'
 
-// Mock policy database - in production, fetch from API
-const mockPolicies = {
-  'POL1001': 'Rajesh Kumar',
-  'POL1002': 'Priya Sharma',
-  'POL1003': 'Amit Patel',
-  'POL1004': 'Sneha Reddy',
-  'POL1005': 'Vikram Singh',
-  'POL-2024-001': 'John Smith',
-  'POL-2024-002': 'Jane Doe',
-  'POL-2024-003': 'Robert Johnson',
-  'POL-2024-004': 'Maria Garcia',
-  'POL-2024-005': 'David Wilson',
+const toReadableError = (err, fallback = 'Something went wrong. Please try again.') => {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const msg = detail
+      .map(d => (typeof d?.msg === 'string' ? d.msg : ''))
+      .filter(Boolean)
+      .join(', ')
+    if (msg) return msg
+  }
+  return err?.message || fallback
 }
 
 export default function CustomerLogin({ onSuccess, onClose }) {
@@ -36,17 +36,7 @@ export default function CustomerLogin({ onSuccess, onClose }) {
     accent: '#10b981', // green for customer
   }
 
-  // Validate policy exists in the system
-  const validatePolicyExists = (policyNumber) => {
-    return mockPolicies.hasOwnProperty(policyNumber.toUpperCase())
-  }
-
-  // Get policyholder name
-  const getPoliceholderName = (policyNumber) => {
-    return mockPolicies[policyNumber.toUpperCase()] || null
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
@@ -65,45 +55,36 @@ export default function CustomerLogin({ onSuccess, onClose }) {
 
     // Check password (hardcoded for testing)
     if (password !== 'admin') {
-      setError('Invalid password.')
+      setError('Invalid credentials.')
       return
     }
 
-    // Check if policy exists
-    if (!validatePolicyExists(policyNum)) {
-      if (mode === 'signup') {
-        setError('Policy number not found in the system.')
-      } else {
-        setError('Invalid policy number.')
-      }
-      return
-    }
-
-    // Get policyholder name
-    const name = getPoliceholderName(policyNum)
-    if (!name) {
-      setError('Unable to retrieve policyholder information.')
-      return
-    }
-
-    // Authentication successful
     setAuthenticating(true)
-    setWelcomeName(name)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await policyService.getPolicyByNumber(policyNum)
+      const name = res?.data?.policy_holder_name
+
+      if (!name || !String(name).trim()) {
+        throw new Error('Unable to retrieve policyholder information.')
+      }
+
       // Store in context and localStorage
       loginCustomer(policyNum, name)
-      
+      setWelcomeName(String(name))
+
       // Show preloader with welcome message
       setShowPreloader(true)
-    }, 1500)
+    } catch (err) {
+      setError(toReadableError(err, 'Unable to verify policy. Is the backend running?'))
+      setAuthenticating(false)
+    }
   }
 
   const handlePreloaderComplete = () => {
     setShowPreloader(false)
     setError('')
-    onSuccess({ policyNumber: form.policyNumber.toUpperCase(), policeholderName: welcomeName })
+    onSuccess({ policyNumber: form.policyNumber.trim().toUpperCase(), policeholderName: welcomeName })
   }
 
   if (showPreloader) {

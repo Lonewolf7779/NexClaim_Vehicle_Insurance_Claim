@@ -56,6 +56,7 @@ class ClaimResponse(BaseModel):
     incident_date: datetime
     description: str
     status: ClaimStatus
+    rejection_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     escalated_by: Optional[str] = None

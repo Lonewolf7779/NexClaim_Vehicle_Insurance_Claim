@@ -28,8 +28,10 @@ const LandingPage = ({ onAction, onLoginClick }) => {
   const parallaxImgRef2 = useRef(null);
   const marqueeRef = useRef(null);
   
-  const { auth } = useAuth();
+  const { auth, customerUser, logoutCustomer } = useAuth();
   const navigate = useNavigate();
+
+  const customerName = customerUser?.name || customerUser?.policeholderName || 'Customer'
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -422,14 +424,31 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         <a href="#" className="magnetic-wrap nav-brand" style={{ textDecoration: 'none', color: '#fff', display: 'none' }}>
           <span className="magnetic-inner">NexClaim</span>
         </a>
-        <div 
-          className="magnetic-wrap" 
-          onClick={auth.customer ? () => navigate('/customer-dashboard') : onLoginClick} 
-          style={{ cursor: 'pointer', marginLeft: 'auto' }}
-        >
-          <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
-            {auth.customer ? 'ENTER DASHBOARD' : 'LOGIN / ACCESS PORTAL'} <ArrowRight size={16} />
-          </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+          {auth.customer && (
+            <div
+              className="btn btn-secondary"
+              style={{ padding: '14px 22px', fontSize: '0.85rem', fontWeight: 600 }}
+            >
+              <span style={{ opacity: 0.7 }}>Welcome</span>
+              <span
+                className="nx-name-gradient"
+                style={{ fontWeight: 700, letterSpacing: '-0.01em', textTransform: 'none' }}
+              >
+                {customerName}
+              </span>
+            </div>
+          )}
+
+          <div
+            className="magnetic-wrap"
+            onClick={auth.customer ? () => navigate('/customer-dashboard') : onLoginClick}
+            style={{ cursor: 'pointer' }}
+          >
+            <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
+              {auth.customer ? 'ENTER DASHBOARD' : 'LOGIN / ACCESS PORTAL'} <ArrowRight size={16} />
+            </span>
+          </div>
         </div>
       </nav>
 
@@ -454,11 +473,27 @@ const LandingPage = ({ onAction, onLoginClick }) => {
 
           <div className="button-group">
             {auth.customer ? (
-              <button className="magnetic-wrap btn btn-primary" onClick={() => navigate('/customer-dashboard')} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
-                <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  ENTER DASHBOARD <div className="btn-icon"><ArrowRight size={20} /></div>
-                </span>
-              </button>
+              <>
+                <button className="magnetic-wrap btn btn-primary" onClick={() => navigate('/customer-dashboard')} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
+                  <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    ENTER DASHBOARD <div className="btn-icon"><ArrowRight size={20} /></div>
+                  </span>
+                </button>
+
+                <button
+                  className="magnetic-wrap btn btn-secondary"
+                  type="button"
+                  onClick={() => {
+                    logoutCustomer()
+                    navigate('/', { replace: true })
+                  }}
+                  style={{ paddingLeft: '44px', paddingRight: '44px' }}
+                >
+                  <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    LOGOUT <div className="btn-icon"><ArrowUpRight size={20} /></div>
+                  </span>
+                </button>
+              </>
             ) : (
               <button className="magnetic-wrap btn btn-primary" onClick={onLoginClick} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
                 <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

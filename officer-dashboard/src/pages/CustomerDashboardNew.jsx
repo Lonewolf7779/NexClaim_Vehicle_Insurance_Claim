@@ -714,7 +714,9 @@ const CustomerDashboardNew = () => {
         </div>
 
         <div className="hero-content">
-          <h1 className="hero-greeting">Hello {customerName}.</h1>
+          <h1 className="hero-greeting">
+            Hello <span className="nx-name-gradient">{customerName}</span>.
+          </h1>
           <p className="hero-subtext">
             Manage your claims and policies with full transparency. Everything you need is right here.
           </p>

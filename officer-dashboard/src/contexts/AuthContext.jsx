@@ -12,7 +12,14 @@ export const AuthProvider = ({ children }) => {
     if (savedCustomerSession) {
       try {
         const parsedSession = JSON.parse(savedCustomerSession)
-        setCustomerUser(parsedSession)
+        const normalized = (parsedSession && typeof parsedSession === 'object')
+          ? {
+            ...parsedSession,
+            policeholderName: parsedSession.policeholderName || parsedSession.policyHolderName || parsedSession.name,
+            name: parsedSession.name || parsedSession.policeholderName || parsedSession.policyHolderName
+          }
+          : parsedSession
+        setCustomerUser(normalized)
         setAuth(prev => ({ ...prev, customer: true }))
       } catch (err) {
         console.error('Failed to parse customer session:', err)
@@ -30,6 +37,7 @@ export const AuthProvider = ({ children }) => {
     const session = {
       policyNumber,
       policeholderName,
+      name: policeholderName,
       loginTime: new Date().toISOString()
     }
     localStorage.setItem('customer_session', JSON.stringify(session))

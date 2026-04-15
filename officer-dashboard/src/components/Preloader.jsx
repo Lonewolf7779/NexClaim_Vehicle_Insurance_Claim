@@ -216,7 +216,7 @@ const Preloader = ({ onComplete, customMessage }) => {
           fontSize: 'clamp(2rem, 5vw, 3rem)', 
           willChange: 'transform, opacity',
           fontWeight: 400, 
-          fontFamily: "'Inter', sans-serif", 
+          fontFamily: '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif', 
           letterSpacing: '-0.02em',
           position: customMessage ? 'absolute' : 'relative',
           opacity: customMessage ? 0 : 1

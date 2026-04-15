@@ -65,6 +65,9 @@ class Claim(Base):
     incident_date = Column(DateTime, nullable=False)
     description = Column(String, nullable=True)
     status = Column(SQLEnum(ClaimStatus), nullable=False, default=ClaimStatus.SUBMITTED)
+
+    # Optional rejection reason (persisted so customers can see why a claim was rejected)
+    rejection_reason = Column(String, nullable=True)
     
     # -------------------------------------------------
     # Settlement Engine Fields

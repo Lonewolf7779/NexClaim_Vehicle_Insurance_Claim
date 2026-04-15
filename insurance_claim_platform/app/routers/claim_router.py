@@ -1438,6 +1438,7 @@ def reject_claim(
     # -------------------------------------------------
     old_status = claim.status
     claim.status = ClaimStatus.REJECTED
+    claim.rejection_reason = request.rejection_reason
     
     # -------------------------------------------------
     # Step 3: Create status history record
