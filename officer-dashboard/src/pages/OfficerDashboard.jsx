@@ -88,6 +88,11 @@ function OfficerDashboard({ onSwitchRole }) {
 
   // Extracted documents from backend
   const [claimDocuments, setClaimDocuments] = useState([])
+  const [daExtractedDocuments, setDaExtractedDocuments] = useState([])
+  const [daFetchLoading, setDaFetchLoading] = useState(false)
+  const [daFetchError, setDaFetchError] = useState(null)
+  const [daFetchInfo, setDaFetchInfo] = useState('')
+  const [daLastSyncAt, setDaLastSyncAt] = useState(null)
 
   useEffect(() => {
     fetchClaims()
@@ -116,8 +121,10 @@ function OfficerDashboard({ onSwitchRole }) {
     }
   }
 
+  const getApiErrorMessage = (err) => err.response?.data?.detail || err.message || 'An error occurred'
+
   const handleApiError = (err) => {
-    const message = err.response?.data?.detail || err.message || 'An error occurred'
+    const message = getApiErrorMessage(err)
     setError(message)
   }
 
@@ -156,6 +163,58 @@ function OfficerDashboard({ onSwitchRole }) {
     return reports
   }
 
+  const fetchDaDocumentsForClaim = async (claimId, options = {}) => {
+    if (!claimId) return
+
+    const showLoader = options.showLoader !== false
+
+    if (showLoader) {
+      setDaFetchLoading(true)
+    }
+    setDaFetchError(null)
+    setDaFetchInfo('')
+
+    try {
+      const docsResponse = await claimService.getDocuments(claimId)
+      const docs = Array.isArray(docsResponse.data) ? docsResponse.data : []
+      setClaimDocuments(docs)
+
+      const extractedDocs = docs.filter((doc) => Array.isArray(doc?.fields) && doc.fields.length > 0)
+      setDaExtractedDocuments(extractedDocs)
+
+      if (docs.length === 0) {
+        setDaFetchInfo('No documents are linked to this claim yet.')
+      } else if (extractedDocs.length === 0) {
+        setDaFetchInfo('Documents are present, but DA has not extracted any fields yet.')
+      } else {
+        const totalFields = extractedDocs.reduce((sum, doc) => sum + (Array.isArray(doc.fields) ? doc.fields.length : 0), 0)
+        setDaFetchInfo(`Loaded ${totalFields} extracted field(s) from ${extractedDocs.length} document(s).`)
+      }
+      setDaLastSyncAt(new Date().toISOString())
+    } catch (err) {
+      const message = getApiErrorMessage(err)
+      setClaimDocuments([])
+      setDaExtractedDocuments([])
+      setDaFetchError(message)
+      setDaFetchInfo('Could not fetch DA extraction results from backend.')
+      setDaLastSyncAt(new Date().toISOString())
+    } finally {
+      if (showLoader) {
+        setDaFetchLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedClaim?.id) return undefined
+
+    const intervalId = setInterval(() => {
+      fetchDaDocumentsForClaim(selectedClaim.id, { showLoader: false })
+    }, 7000)
+
+    return () => clearInterval(intervalId)
+  }, [selectedClaim?.id])
+
   const refreshClaimData = async (claimId) => {
     try {
       const claimResponse = await claimService.getClaim(claimId)
@@ -163,6 +222,7 @@ function OfficerDashboard({ onSwitchRole }) {
       const historyResponse = await claimService.getClaimHistory(claimId)
       setClaimHistory(historyResponse.data)
       await loadSurveyReports(claimId, claimResponse.data)
+      await fetchDaDocumentsForClaim(claimId)
     } catch (err) {
       handleApiError(err)
     }
@@ -199,6 +259,11 @@ function OfficerDashboard({ onSwitchRole }) {
     setSettlementType('cashless')
     setPreviewDoc(null)
     setClaimDocuments([])
+    setDaExtractedDocuments([])
+    setDaFetchLoading(false)
+    setDaFetchError(null)
+    setDaFetchInfo('')
+    setDaLastSyncAt(null)
     setRequestDocsOpen(false)
     setRequestDocsTypes([])
     setRequestDocsReason('')
@@ -232,8 +297,7 @@ function OfficerDashboard({ onSwitchRole }) {
       const historyResponse = await claimService.getClaimHistory(claim.id)
       setClaimHistory(historyResponse.data)
       await loadSurveyReports(claim.id, claimResponse.data)
-      const docsResponse = await claimService.getDocuments(claim.id)
-      setClaimDocuments(docsResponse.data)
+      await fetchDaDocumentsForClaim(claim.id)
     } catch (err) {
       handleApiError(err)
     }
@@ -244,6 +308,12 @@ function OfficerDashboard({ onSwitchRole }) {
     setPolicy(null)
     setClaimHistory([])
     setSurveyReports([])
+    setClaimDocuments([])
+    setDaExtractedDocuments([])
+    setDaFetchLoading(false)
+    setDaFetchError(null)
+    setDaFetchInfo('')
+    setDaLastSyncAt(null)
     fetchClaims()
   }
 
@@ -1118,8 +1188,10 @@ function OfficerDashboard({ onSwitchRole }) {
                 const canView = Boolean(doc?.file_path)
 
                 return (
-                  <div key={doc?.id ?? `${docType}-${doc?.extracted_at ?? ''}`} style={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'border-color 0.3s', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <React.Fragment key={doc?.id ?? `${docType}-${doc?.extracted_at ?? ''}`}>
+                  <div style={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px', transition: 'border-color 0.3s', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <span style={{ fontSize: '28px', opacity: 0.8 }}>📄</span>
                       <div>
                         <div style={{ fontWeight: '800', color: '#fff', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '14px' }}>{label}</div>
@@ -1141,8 +1213,24 @@ function OfficerDashboard({ onSwitchRole }) {
                       }}
                     >
                       VIEW
-                    </button>
+                      </button>
+                    </div>
+
+                    {fieldCount > 0 && (
+                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ fontSize: '12px', color: '#fff', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '12px' }}>AI EXTRACTION DATA:</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
+                          {doc.fields.map((f, idx) => (
+                            <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
+                              <div style={{ fontSize: '10px', color: '#10b981', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '4px', fontWeight: '700' }}>{f.field_name.replace(/_/g, ' ')}</div>
+                              <div style={{ fontSize: '13px', color: '#e0e0e0', fontWeight: '500', wordBreak: 'break-word' }}>{f.field_value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  </React.Fragment>
                 )
               })}
             </div>
@@ -1166,6 +1254,123 @@ function OfficerDashboard({ onSwitchRole }) {
               />
             </div>
           </div>
+        )}
+      </SectionCard>
+    )
+  }
+
+  // -----------------------------------------------
+  // SECTION 14 — DA Extraction Results
+  // -----------------------------------------------
+  const renderSection14 = () => {
+    const extractedDocCount = daExtractedDocuments.length
+    const totalExtractedFields = daExtractedDocuments.reduce((sum, doc) => sum + (Array.isArray(doc?.fields) ? doc.fields.length : 0), 0)
+
+    return (
+      <SectionCard number="14" title="DA_EXTRACTION_RESULTS">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
+          <div style={{ color: '#a3a3a3', fontSize: '12px', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: '600' }}>
+            BACKEND SOURCE: /CLAIMS/{selectedClaim.id}/DOCUMENTS
+          </div>
+          <button
+            onClick={() => fetchDaDocumentsForClaim(selectedClaim.id)}
+            disabled={daFetchLoading}
+            onMouseEnter={daFetchLoading ? null : hoverEffect}
+            onMouseLeave={daFetchLoading ? null : leaveEffect}
+            style={{
+              ...btnOutline,
+              padding: '10px 16px',
+              fontSize: '11px',
+              opacity: daFetchLoading ? 0.5 : 1,
+              cursor: daFetchLoading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {daFetchLoading ? 'FETCHING_DA_DATA...' : 'REFRESH_DA_DATA'}
+          </button>
+        </div>
+
+        {daLastSyncAt && (
+          <div style={{ marginBottom: '14px', color: '#666', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            LAST DA SYNC: {formatDateTime(daLastSyncAt)}
+          </div>
+        )}
+
+        {daFetchLoading && (
+          <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', backgroundColor: 'rgba(56, 189, 248, 0.08)', color: '#38bdf8', fontSize: '13px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            FETCHING EXTRACTED DATA FROM DOCUMENT AUTOMATION...
+          </div>
+        )}
+
+        {!daFetchLoading && daFetchError && (
+          <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.25)', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px', letterSpacing: '0.04em' }}>
+            <strong>FETCH FAILED:</strong> {daFetchError}
+          </div>
+        )}
+
+        {!daFetchLoading && !daFetchError && extractedDocCount === 0 && (
+          <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', letterSpacing: '0.04em' }}>
+            <strong>NO DA EXTRACTION VISIBLE:</strong> {daFetchInfo || 'No extracted field data returned yet.'}
+          </div>
+        )}
+
+        {!daFetchLoading && !daFetchError && extractedDocCount > 0 && (
+          <>
+            <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.25)', backgroundColor: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '12px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              {extractedDocCount} DOCUMENT(S) WITH DA DATA • {totalExtractedFields} FIELD(S)
+            </div>
+
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {daExtractedDocuments.map((doc) => {
+                const docType = String(doc?.document_type || 'DOCUMENT').replace(/_/g, ' ')
+                const fields = Array.isArray(doc?.fields) ? doc.fields : []
+                const canView = Boolean(doc?.file_path)
+
+                return (
+                  <div key={doc?.id ?? `${docType}-${doc?.extracted_at ?? ''}`} style={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                      <div>
+                        <div style={{ color: '#fff', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '14px' }}>{docType}</div>
+                        <div style={{ color: '#666', fontSize: '11px', letterSpacing: '0.05em', marginTop: '4px' }}>
+                          EXTRACTED {formatDateTime(doc?.extracted_at)} • {fields.length} FIELD(S)
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => canView && handleViewDocument(doc)}
+                        disabled={!canView}
+                        onMouseEnter={canView ? hoverEffect : null}
+                        onMouseLeave={canView ? leaveEffect : null}
+                        style={{
+                          ...btnOutline,
+                          padding: '8px 14px',
+                          fontSize: '11px',
+                          opacity: canView ? 1 : 0.35,
+                          cursor: canView ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        VIEW SOURCE
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
+                      {fields.map((field, index) => {
+                        const fieldName = String(field?.field_name || 'unknown_field').replace(/_/g, ' ')
+                        const fieldValue = field?.field_value === null || field?.field_value === undefined || String(field.field_value).trim() === '' ? 'N/A' : String(field.field_value)
+                        const confidence = typeof field?.confidence_score === 'number' ? `${Math.round(field.confidence_score * 100)}%` : null
+
+                        return (
+                          <div key={`${fieldName}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px' }}>
+                            <div style={{ color: '#10b981', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700', marginBottom: '6px' }}>{fieldName}</div>
+                            <div style={{ color: '#e0e0e0', fontSize: '13px', fontWeight: '500', wordBreak: 'break-word', marginBottom: confidence ? '8px' : 0 }}>{fieldValue}</div>
+                            {confidence && <div style={{ color: '#a3a3a3', fontSize: '11px', letterSpacing: '0.04em' }}>CONFIDENCE: {confidence}</div>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
       </SectionCard>
     )
@@ -1723,6 +1928,7 @@ function OfficerDashboard({ onSwitchRole }) {
         {renderSection4()}
         {renderSection5()}
         {renderSection6()}
+        {renderSection14()}
         {renderSection7()}
         {renderSection8()}
         {renderSection9()}

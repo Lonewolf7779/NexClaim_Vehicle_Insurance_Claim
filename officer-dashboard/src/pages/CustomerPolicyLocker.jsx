@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { policyService } from '../services/api'
+import CustomerAvatarLogout from '../components/CustomerAvatarLogout'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
@@ -131,6 +132,7 @@ function CustomerPolicyLocker() {
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button type="button" className="water-btn water-btn--sm" onClick={() => navigate('/track')}>Track Claims</button>
             <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>Back to Dashboard</button>
+            <CustomerAvatarLogout />
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { claimService } from '../services/api'
+import CustomerAvatarLogout from './CustomerAvatarLogout'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
@@ -38,6 +39,36 @@ const fileNameFromPath = (path) => {
   return parts[parts.length - 1] || path
 }
 
+const formatVehicleAge = (value) => {
+  if (value === null || value === undefined || value === '') return '—'
+  const n = Number(value)
+  if (Number.isFinite(n)) {
+    const rounded = Number.isInteger(n) ? n.toFixed(0) : n.toFixed(1)
+    return `${rounded} years`
+  }
+  return String(value)
+}
+
+const toDocumentUrl = (path) => {
+  if (!path || typeof path !== 'string') return ''
+
+  const raw = path.trim()
+  if (!raw) return ''
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const absolute = new URL(raw)
+      absolute.pathname = absolute.pathname.replace(/\/+/g, '/')
+      return absolute.toString()
+    } catch {
+      return raw
+    }
+  }
+
+  const normalizedPath = `/${raw.replace(/^\/+/, '')}`.replace(/\/+/g, '/')
+  return `http://localhost:8000${normalizedPath}`
+}
+
 function CustomerClaimDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -54,6 +85,32 @@ function CustomerClaimDetailPage() {
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const latestSurveyReport = claim?.latest_survey_report || null
+
+  const materialTypesDisplay = useMemo(() => {
+    const materialTypes =
+      claim?.material_types ||
+      claim?.parts_material_types ||
+      claim?.exact_material_types ||
+      latestSurveyReport?.parts_damaged
+
+    if (!materialTypes) return '—'
+    if (Array.isArray(materialTypes)) {
+      const cleaned = materialTypes.map((item) => String(item || '').trim()).filter(Boolean)
+      return cleaned.length ? cleaned.join(', ') : '—'
+    }
+
+    const asText = String(materialTypes).trim()
+    return asText || '—'
+  }, [claim, latestSurveyReport])
+
+  const surveyorDisplay = useMemo(() => {
+    const surveyorName = latestSurveyReport?.surveyor_name || claim?.surveyor_name || claim?.assigned_surveyor_name
+    const surveyorId = latestSurveyReport?.surveyor_id || claim?.surveyor_id || claim?.assigned_surveyor_id
+    if (surveyorName && surveyorId) return `${surveyorName} (${surveyorId})`
+    return surveyorName || surveyorId || '—'
+  }, [claim, latestSurveyReport])
 
   useEffect(() => {
     if (!auth.customer) return
@@ -140,7 +197,7 @@ function CustomerClaimDetailPage() {
       <div style={contentStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: 'clamp(3rem, 7vw, 7rem)', fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 0.95 }}>
+            <h1 style={{ margin: 0, fontSize: 'clamp(2rem, 4.2vw, 4.3rem)', fontWeight: 500, letterSpacing: '-0.04em', lineHeight: 0.96 }}>
               Claim #{claim?.claim_number || claimId || '—'}
             </h1>
             <p style={{ marginTop: 18, marginBottom: 0, color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem', lineHeight: 1.5 }}>
@@ -148,9 +205,12 @@ function CustomerClaimDetailPage() {
             </p>
           </div>
 
-          <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/track')}>
-            Back to Tracking
-          </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/track')}>
+              Back to Tracking
+            </button>
+            <CustomerAvatarLogout />
+          </div>
         </div>
 
         <div style={{ marginTop: 56 }}>
@@ -215,6 +275,47 @@ function CustomerClaimDetailPage() {
                     {formatAmount(claim.final_payable)}
                   </div>
                 </div>
+
+                {(claim?.vehicle_age_years !== undefined || claim?.vehicle_age !== undefined || claim?.vehicle_age_in_years !== undefined) && (
+                  <div style={cardStyle}>
+                    <div className="nx-label">Vehicle Age</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                      {formatVehicleAge(claim?.vehicle_age_years ?? claim?.vehicle_age ?? claim?.vehicle_age_in_years)}
+                    </div>
+                  </div>
+                )}
+
+                {materialTypesDisplay !== '—' && (
+                  <div style={cardStyle}>
+                    <div className="nx-label">Material Types (Extracted)</div>
+                    <div style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.88)', lineHeight: 1.55 }}>
+                      {materialTypesDisplay}
+                    </div>
+                  </div>
+                )}
+
+                {surveyorDisplay !== '—' && (
+                  <div style={cardStyle}>
+                    <div className="nx-label">Surveyor</div>
+                    <div style={{ fontSize: '1.12rem', color: 'rgba(255,255,255,0.88)', lineHeight: 1.55 }}>
+                      {surveyorDisplay}
+                    </div>
+                    {latestSurveyReport?.assigned_at && (
+                      <div style={{ marginTop: 8, color: 'rgba(255,255,255,0.58)', fontSize: '0.92rem' }}>
+                        Assigned: {formatDateTime(latestSurveyReport.assigned_at)}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {latestSurveyReport?.recommendation && (
+                  <div style={cardStyle}>
+                    <div className="nx-label">Survey Recommendation</div>
+                    <div style={{ fontSize: '1.02rem', color: 'rgba(255,255,255,0.86)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                      {latestSurveyReport.recommendation}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={cardStyle}>
@@ -247,39 +348,43 @@ function CustomerClaimDetailPage() {
 
                 {documents.length > 0 && (
                   <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-                    {documents.map((doc) => (
-                      <div
-                        key={doc?.id || `${doc?.document_type}-${doc?.file_path}`}
-                        style={{
-                          padding: '18px 18px',
-                          borderRadius: '14px',
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.08)'
-                        }}
-                      >
-                        <div className="nx-label">{doc?.document_type || 'DOCUMENT'}</div>
-                        <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-                          {fileNameFromPath(doc?.file_path)}
-                        </div>
-                        <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
-                          {formatDateTime(doc?.extracted_at)}
-                        </div>
+                    {documents.map((doc) => {
+                      const documentUrl = toDocumentUrl(doc?.file_path)
 
-                        {doc?.file_path && (
-                          <div style={{ marginTop: 14 }}>
-                            <a
-                              className="water-btn water-btn--sm"
-                              href={`http://localhost:8000${doc.file_path}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ textDecoration: 'none' }}
-                            >
-                              View
-                            </a>
+                      return (
+                        <div
+                          key={doc?.id || `${doc?.document_type}-${doc?.file_path}`}
+                          style={{
+                            padding: '18px 18px',
+                            borderRadius: '14px',
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.08)'
+                          }}
+                        >
+                          <div className="nx-label">{doc?.document_type || 'DOCUMENT'}</div>
+                          <div style={{ marginTop: 6, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+                            {fileNameFromPath(doc?.file_path)}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
+                            {formatDateTime(doc?.extracted_at)}
+                          </div>
+
+                          {documentUrl && (
+                            <div style={{ marginTop: 14 }}>
+                              <a
+                                className="water-btn water-btn--sm"
+                                href={documentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ textDecoration: 'none' }}
+                              >
+                                View Document
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>

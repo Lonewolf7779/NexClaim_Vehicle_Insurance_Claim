@@ -34,18 +34,24 @@ from app.models.survey_report import SurveyReport
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     watcher_proc = None
+    da_watcher_proc = None
     _seed_demo_policies()
     try:
         # Startup: Start policy watcher safely
         watcher_path = os.path.join(os.getcwd(), '..', 'policy_watcher.py')
         watcher_proc = subprocess.Popen([sys.executable, watcher_path], shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
         print(f"Started policy watcher: {watcher_path} (PID: {watcher_proc.pid})")
+        
+        # Startup: Start DA watcher safely
+        da_watcher_path = os.path.join(os.getcwd(), '..', 'da_watcher.py')
+        da_watcher_proc = subprocess.Popen([sys.executable, da_watcher_path], shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
+        print(f"Started DA watcher: {da_watcher_path} (PID: {da_watcher_proc.pid})")
     except Exception as e:
-        print(f"Failed to start watcher: {e}")
+        print(f"Failed to start watchers: {e}")
     
     yield
     
-    # Shutdown: Terminate watcher safely
+    # Shutdown: Terminate watchers safely
     if watcher_proc:
         watcher_proc.terminate()
         try:
@@ -54,6 +60,15 @@ async def lifespan(app: FastAPI):
         except subprocess.TimeoutExpired:
             watcher_proc.kill()
             print("Killed policy watcher")
+            
+    if da_watcher_proc:
+        da_watcher_proc.terminate()
+        try:
+            da_watcher_proc.wait(timeout=5)
+            print("Terminated DA watcher")
+        except subprocess.TimeoutExpired:
+            da_watcher_proc.kill()
+            print("Killed DA watcher")
 
 
 def _run_startup_migrations() -> None:
@@ -313,15 +328,22 @@ app.add_middleware(
 )
 
 # -------------------------------------------------
-# Create Inbound Directory for RPA File Drops
+# Create DA Architecture Folders
 # -------------------------------------------------
-INBOUND_DIR = r"D:\NexClaim_RPA\Inbound"
-os.makedirs(INBOUND_DIR, exist_ok=True)
+BASE_OPS_DIR = r"D:\Nexclaim_operations"
+DA_INPUT_DIR = os.path.join(BASE_OPS_DIR, "DA_Input")
+DA_SUCCESS_DIR = os.path.join(BASE_OPS_DIR, "DA_Success")
+DA_ARCHIVE_DIR = os.path.join(BASE_OPS_DIR, "DA_Archive")
+
+os.makedirs(BASE_OPS_DIR, exist_ok=True)
+os.makedirs(DA_INPUT_DIR, exist_ok=True)
+os.makedirs(DA_SUCCESS_DIR, exist_ok=True)
+os.makedirs(DA_ARCHIVE_DIR, exist_ok=True)
 
 # -------------------------------------------------
 # Serve uploaded files from Inbound directory
 # -------------------------------------------------
-app.mount("/rpa-data/Inbound", StaticFiles(directory=INBOUND_DIR), name="inbound-files")
+app.mount("/documents", StaticFiles(directory=BASE_OPS_DIR), name="documents")
 
 # Include claim routes
 app.include_router(claim_router.router)
@@ -343,27 +365,42 @@ def upload_file(
     document_type: str = Query(default="INVOICE"),
     db: Session = Depends(get_db)
 ):
+    import shutil
     """
     Upload one or more document files for a claim.
-    Each file is saved as ClaimID_{id}_{document_type}.pdf
-    in the NexClaim_RPA Inbound directory.
+    Each file is saved inside D:\\Nexclaim_operations\\CLAIM_{claim_id}\\.
+    If document_type is REPAIR_ESTIMATE, a copy is routed to DA_Input.
     """
     safe_type = "".join(c for c in document_type if c.isalnum() or c == "_")
     saved_files = []
 
+    # Create customer specific folder inside D:\\Nexclaim_operations
+    claim_folder = os.path.join(BASE_OPS_DIR, f"CLAIM_{claim_id}")
+    os.makedirs(claim_folder, exist_ok=True)
+
     for file in files:
         # Reset file pointer to ensure full content is read
         file.file.seek(0)
-        unique_id = uuid.uuid4().hex
-        file_name = f"{unique_id}_{safe_type}.pdf"
-        file_path = os.path.join(INBOUND_DIR, file_name)
+        unique_id = uuid.uuid4().hex[:8]
+        # Ensure original file extension is maintained
+        ext = os.path.splitext(file.filename)[1]
+        if not ext:
+            ext = ".pdf"
+            
+        file_name = f"CLAIM_{claim_id}_{safe_type}_{unique_id}{ext}"
+        file_path = os.path.join(claim_folder, file_name)
 
         with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
+            shutil.copyfileobj(file.file, buffer)
+            
+        # If Repair Invoice, route a copy to DA_Input
+        if document_type.upper() == "REPAIR_ESTIMATE":
+            da_input_path = os.path.join(DA_INPUT_DIR, file_name)
+            shutil.copy2(file_path, da_input_path)
 
         # Construct safe relative path to send to frontend
-        # The frontend uses this to make GET requests to /rpa-data/Inbound/...
-        frontend_file_path = f"/rpa-data/Inbound/{file_name}"
+        # The frontend uses this to make GET requests to /documents/...
+        frontend_file_path = f"/documents/CLAIM_{claim_id}/{file_name}"
         saved_files.append({"file_name": file_name, "file_path": frontend_file_path})
 
         # Register document in the database instantly
@@ -377,11 +414,12 @@ def upload_file(
             document_type=doc_enum,
             file_path=frontend_file_path
         )
+        # Give it a baseline extraction timestamp since it's uploaded
+        db_doc.extracted_at = datetime.utcnow()
         db.add(db_doc)
         db.commit()
 
-    # Cooldown: ensure Windows completes the write before
-    # any downstream RPA bot picks up the file
+    # Cooldown: ensure Windows completes the write before downstream RPA bot picks up the file
     time.sleep(2)
 
     return {

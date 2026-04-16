@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { claimService, policyService } from '../services/api'
+import CustomerAvatarLogout from '../components/CustomerAvatarLogout'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
@@ -35,14 +36,22 @@ function CustomerFileClaim() {
   const navigate = useNavigate()
   const { customerUser } = useAuth()
 
-  const policyNumber = customerUser?.policyNumber
-  const policyHolderName = customerUser?.policeholderName
+  const defaultPolicyNumber = customerUser?.policyNumber || ''
+  const defaultHolderName = customerUser?.policeholderName || ''
+
+  const [step, setStep] = useState(0) // 0: Verify Policy, 1: Incident, 2: Driver, 3: Evidence
+
+  const [authPolicyNumber, setAuthPolicyNumber] = useState(defaultPolicyNumber)
+  const [authPassword, setAuthPassword] = useState('')
+  const [verifyingPolicy, setVerifyingPolicy] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
+
+  const [policyNumber, setPolicyNumber] = useState('') // Set after step 0 is passed
+  const [policyHolderName, setPolicyHolderName] = useState('')
 
   const [policy, setPolicy] = useState(null)
-  const [loadingPolicy, setLoadingPolicy] = useState(true)
+  const [loadingPolicy, setLoadingPolicy] = useState(false)
   const [policyError, setPolicyError] = useState('')
-
-  const [step, setStep] = useState(1) // 1: Incident, 2: Driver, 3: Evidence
 
   // Step 1
   const [incidentType, setIncidentType] = useState('ACCIDENT')
@@ -77,13 +86,14 @@ function CustomerFileClaim() {
         setPolicy(null)
 
         if (!policyNumber) {
-          setPolicyError('Missing policy number in your session. Please login again.')
+          setLoadingPolicy(false)
           return
         }
 
         const response = await policyService.getPolicyByNumber(policyNumber)
         if (cancelled) return
         setPolicy(response.data)
+        setPolicyHolderName(response.data.policy_holder_name)
       } catch (err) {
         if (cancelled) return
         setPolicyError(toReadableError(err, 'Failed to load policy details.'))
@@ -171,6 +181,32 @@ function CustomerFileClaim() {
     lines.push('')
     lines.push(String(description || '').trim())
     return lines.join('\n')
+  }
+
+  const handleVerifyPolicy = async (e) => {
+    e.preventDefault()
+    setVerifyError('')
+
+    const pn = authPolicyNumber.trim().toUpperCase()
+    const pwd = authPassword
+
+    if (!pn) return setVerifyError('Policy number is required.')
+    if (!pwd) return setVerifyError('Password is required.')
+    if (pwd !== 'admin') return setVerifyError('Invalid credentials.')
+
+    setVerifyingPolicy(true)
+    try {
+      const res = await policyService.getPolicyByNumber(pn)
+      if (!res.data) throw new Error('Policy not found.')
+      
+      setPolicyNumber(pn)
+      setPolicyHolderName(res.data.policy_holder_name)
+      setStep(1)
+    } catch (err) {
+      setVerifyError(toReadableError(err, 'Failed to verify policy.'))
+    } finally {
+      setVerifyingPolicy(false)
+    }
   }
 
   const handleNext = () => {
@@ -336,20 +372,60 @@ function CustomerFileClaim() {
               File a New Claim
             </h1>
             <p style={{ marginTop: 18, marginBottom: 0, color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem', lineHeight: 1.5 }}>
-              Policy: {policyNumber || '—'}
+              {policyNumber ? `Policy: ${policyNumber}` : 'Verify your policy to proceed'}
             </p>
           </div>
 
-          <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>
-            Back to Dashboard
-          </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>
+              Back to Dashboard
+            </button>
+            <CustomerAvatarLogout />
+          </div>
         </div>
 
         <div style={{ marginTop: 56 }}>
-          {loadingPolicy && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading your policy…</div>}
-          {!loadingPolicy && policyError && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{policyError}</div>}
+          {step === 0 && (
+            <div style={{ maxWidth: 400, ...cardStyle }}>
+              <form onSubmit={handleVerifyPolicy} style={{ display: 'grid', gap: 20 }}>
+                <div>
+                  <label className="nx-label">Policy Number</label>
+                  <input 
+                    type="text" 
+                    value={authPolicyNumber} 
+                    onChange={e => setAuthPolicyNumber(e.target.value)} 
+                    placeholder="e.g. POL1005"
+                    className="nx-input"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="nx-label">Password</label>
+                  <input 
+                    type="password" 
+                    value={authPassword} 
+                    onChange={e => setAuthPassword(e.target.value)} 
+                    placeholder="Enter policy password"
+                    className="nx-input"
+                  />
+                </div>
+                {verifyError && <div style={{ color: '#ff4d4d', fontSize: '0.9rem' }}>{verifyError}</div>}
+                <button 
+                  type="submit" 
+                  disabled={verifyingPolicy}
+                  className="water-btn" 
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  {verifyingPolicy ? 'Verifying...' : 'Verify Policy'}
+                </button>
+              </form>
+            </div>
+          )}
 
-          {!loadingPolicy && !policyError && policySummary && (
+          {step > 0 && loadingPolicy && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading your policy…</div>}
+          {step > 0 && !loadingPolicy && policyError && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{policyError}</div>}
+
+          {step > 0 && !loadingPolicy && !policyError && policySummary && (
             <div className="nx-split-3-1">
               <form onSubmit={handleSubmit} style={cardStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>

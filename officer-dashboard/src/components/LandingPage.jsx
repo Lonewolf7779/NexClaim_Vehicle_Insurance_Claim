@@ -11,7 +11,20 @@ const SplitTextReveal = ({ text, className }) => {
   return (
     <h2 className={`split-text-target ${className || ''}`}>
       {text.split(' ').map((word, i) => (
-        <span key={i} className="word-mask" style={{ display: 'inline-block', overflow: 'hidden', verticalAlign: 'top', marginTop: '0.1em', marginRight: '0.25em', paddingBottom: '0.2em', marginBottom: '-0.2em' }}>
+        <span
+          key={i}
+          className="word-mask"
+          style={{
+            display: 'inline-block',
+            overflow: 'hidden',
+            verticalAlign: 'top',
+            marginTop: '-0.05em',
+            marginRight: '0.25em',
+            paddingTop: '0.18em',
+            paddingBottom: '0.34em',
+            marginBottom: '-0.18em'
+          }}
+        >
           <span className="word-inner" style={{ display: 'inline-block', transform: 'translateY(120%)', transformOrigin: 'top left', willChange: 'transform' }}>
             {word}
           </span>
@@ -84,14 +97,14 @@ const LandingPage = ({ onAction, onLoginClick }) => {
 
       /* Hero Section */
       .hero-section {
-        position: relative; width: 100vw; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 16vh 6vw 12vh 6vw; overflow: visible;
+        position: relative; width: 100vw; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 16vh 6vw 12vh 6vw; overflow: visible; isolation: isolate;
       }
-      .hero-bg-wrapper { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+      .hero-bg-wrapper { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
       .hero-bg-image { width: 100%; height: 130%; object-fit: cover; position: absolute; top: -15%; left: 0; will-change: transform; filter: brightness(0.9); }
-      .hero-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.3) 50%, rgba(5,5,5,0.1) 100%); z-index: 1; pointer-events: none; }
+      .hero-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.3) 50%, rgba(5,5,5,0.1) 100%); z-index: 2; pointer-events: none; }
       
-      .hero-content { position: relative; z-index: 60; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
-      .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 2.5rem; }
+      .hero-content { position: relative; z-index: 120; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
+      .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 1.02; letter-spacing: -0.04em; margin-bottom: 2.5rem; overflow: visible; }
       
       .hero-subtext { font-size: clamp(1.1rem, 1.5vw, 1.4rem); color: rgba(255, 255, 255, 0.7); line-height: 1.5; max-width: 600px; margin-bottom: 4rem; }
 

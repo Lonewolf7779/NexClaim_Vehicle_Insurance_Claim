@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import gsap from 'gsap'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { claimService } from '../services/api'
+import CustomerAvatarLogout from '../components/CustomerAvatarLogout'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
@@ -90,6 +92,8 @@ function CustomerTrack() {
   const [uploading, setUploading] = useState(false)
   const [uploadMessage, setUploadMessage] = useState('')
   const [uploadError, setUploadError] = useState('')
+  const [hoveredTimelineKey, setHoveredTimelineKey] = useState(null)
+  const timelineNodeRefs = useRef([])
 
   useEffect(() => {
     let cancelled = false
@@ -246,6 +250,52 @@ function CustomerTrack() {
     return events
   }, [claimDetail, claimHistory, currentDominoKey])
 
+  useEffect(() => {
+    timelineNodeRefs.current = timelineNodeRefs.current.slice(0, timelineEvents.length)
+    const nodes = timelineNodeRefs.current.filter(Boolean)
+
+    if (!nodes.length) return
+
+    gsap.fromTo(
+      nodes,
+      { autoAlpha: 0, y: 16 },
+      { autoAlpha: 1, y: 0, duration: 0.55, stagger: 0.08, ease: 'power3.out' }
+    )
+
+    const cleanups = []
+    nodes.forEach((node) => {
+      const onEnter = () => {
+        gsap.to(node, {
+          scale: 1.025,
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.24), 0 18px 34px rgba(0,0,0,0.38)',
+          duration: 0.28,
+          ease: 'power2.out'
+        })
+      }
+
+      const onLeave = () => {
+        gsap.to(node, {
+          scale: 1,
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 0 0 rgba(0,0,0,0)',
+          duration: 0.35,
+          ease: 'power2.out'
+        })
+      }
+
+      node.addEventListener('mouseenter', onEnter)
+      node.addEventListener('mouseleave', onLeave)
+
+      cleanups.push(() => {
+        node.removeEventListener('mouseenter', onEnter)
+        node.removeEventListener('mouseleave', onLeave)
+      })
+    })
+
+    return () => {
+      cleanups.forEach((fn) => fn())
+    }
+  }, [timelineEvents])
+
   const pageStyle = {
     minHeight: '100vh',
     backgroundColor: '#1c1d20',
@@ -355,241 +405,295 @@ function CustomerTrack() {
             <p style={{ marginTop: 18, marginBottom: 0, color: 'rgba(255,255,255,0.6)', fontSize: '1.1rem', lineHeight: 1.5 }}>
               Policy: {policyNumber || '—'}
             </p>
+
+            <button
+              type="button"
+              className="water-btn water-btn--sm back-btn-cs"
+              onClick={() => navigate('/')}
+              style={{ marginTop: 20 }}
+            >
+              ← Back to Main Landing Page
+            </button>
           </div>
 
-          <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>
-            Back to Dashboard
-          </button>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>
+              Back to Dashboard
+            </button>
+            <CustomerAvatarLogout />
+          </div>
         </div>
 
         <div style={{ marginTop: 56 }}>
-        {loading && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading your claims…</div>}
-        {!loading && error && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{error}</div>}
+          {loading && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading your claims…</div>}
+          {!loading && error && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{error}</div>}
 
-        {!loading && !error && (
-          <>
-            <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.6 }}>
-              {activeClaims.length > 0
-                ? `Active claims: ${activeClaims.length}`
-                : 'No active claims found.'}
-            </div>
+          {!loading && !error && (
+            <>
+              <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '1.05rem', lineHeight: 1.6 }}>
+                {activeClaims.length > 0
+                  ? `Active claims: ${activeClaims.length}`
+                  : 'No active claims found.'}
+              </div>
 
-            <div style={{ display: 'grid', gap: 18, marginTop: 28 }}>
-              {claims.map((claim) => {
-                const id = Number(claim?.id)
-                const isSelected = selectedClaimId && id === Number(selectedClaimId)
-                return (
-                  <div
-                    key={claim.id}
-                    style={isSelected ? selectedCardStyle : cardStyle}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedClaimId(id)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') setSelectedClaimId(id)
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 500, letterSpacing: '-0.02em' }}>
-                          {claim.claim_number || `Claim #${claim.id}`}
+              <div
+                style={{
+                  marginTop: 28,
+                  display: 'grid',
+                  gridTemplateColumns: selectedClaimId ? 'minmax(300px, 420px) minmax(0, 1fr)' : '1fr',
+                  gap: 22,
+                  alignItems: 'start'
+                }}
+              >
+                <div style={{ display: 'grid', gap: 18 }}>
+                  {claims.map((claim) => {
+                    const id = Number(claim?.id)
+                    const isSelected = selectedClaimId && id === Number(selectedClaimId)
+                    return (
+                      <div
+                        key={claim.id}
+                        style={isSelected ? selectedCardStyle : cardStyle}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedClaimId(id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') setSelectedClaimId(id)
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 500, letterSpacing: '-0.02em' }}>
+                              {claim.claim_number || `Claim #${claim.id}`}
+                            </div>
+                            <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.96rem' }}>
+                              Incident: {formatDate(claim.incident_date)} • Updated: {formatDateTime(claim.updated_at)}
+                            </div>
+                          </div>
+                          <div style={badgeStyle}>{statusLabel(String(claim.status || ''))}</div>
                         </div>
-                        <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
-                          Incident: {formatDate(claim.incident_date)} • Updated: {formatDateTime(claim.updated_at)}
+
+                        <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.76)', fontSize: '1.06rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                          {claim.description || '—'}
                         </div>
                       </div>
-                      <div style={badgeStyle}>{String(claim.status || '—')}</div>
+                    )
+                  })}
+
+                  {claims.length === 0 && (
+                    <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.65)' }}>
+                      No claims yet. Use “File a New Claim” from the dashboard.
                     </div>
-
-                    <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                      {claim.description || '—'}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {claims.length === 0 && (
-                <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.65)' }}>
-                  No claims yet. Use “File a New Claim” from the dashboard.
-                </div>
-              )}
-            </div>
-
-            {selectedClaimId && (
-              <div style={{ marginTop: 26, display: 'grid', gap: 18 }}>
-                <div style={panelStyle}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-                    <div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 500, letterSpacing: '-0.02em' }}>
-                        Selected Claim
-                      </div>
-                      <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
-                        Claim ID: {selectedClaimId}
-                      </div>
-                    </div>
-                    <button type="button" className="water-btn water-btn--sm" onClick={() => navigate(`/my-claims/${selectedClaimId}`)}>
-                      Open Details
-                    </button>
-                  </div>
-
-                  {loadingSelected && <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.7)' }}>Loading claim timeline…</div>}
-                  {!loadingSelected && selectedError && <div style={{ marginTop: 14, color: 'rgba(255,120,120,0.95)' }}>{selectedError}</div>}
-
-                  {!loadingSelected && !selectedError && claimDetail && (
-                    <>
-                      <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-                        <div>
-                          <div style={{ fontSize: '1.35rem', fontWeight: 500, letterSpacing: '-0.02em' }}>
-                            {claimDetail.claim_number || `Claim #${claimDetail.id}`}
-                          </div>
-                          <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.55)', fontSize: '0.95rem' }}>
-                            Incident: {formatDate(claimDetail.incident_date)} • Updated: {formatDateTime(claimDetail.updated_at)}
-                          </div>
-                        </div>
-                        <div style={badgeStyle}>{currentStatus || '—'}</div>
-                      </div>
-
-                      <div style={{ marginTop: 14, color: 'rgba(255,255,255,0.72)', fontSize: '1.02rem', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                        {claimDetail.description || '—'}
-                      </div>
-
-                      {currentStatus === 'DOCUMENT_REQUIRED' && (
-                        <div style={{ ...alertStyle, marginTop: 18 }}>
-                          <div style={{ fontSize: '1.05rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
-                            Action Required: Documents Needed
-                          </div>
-                          <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
-                            Upload the requested documents to continue processing.
-                          </div>
-
-                          <div style={{ marginTop: 16, display: 'grid', gap: 14, maxWidth: 680 }}>
-                            <div>
-                              <div className="nx-label">Document Type</div>
-                              <select value={uploadDocumentType} onChange={(e) => setUploadDocumentType(e.target.value)} className="nx-select">
-                                <option value="DAMAGE_PHOTOS">DAMAGE_PHOTOS</option>
-                                <option value="FIR">FIR</option>
-                                <option value="DRIVING_LICENSE">DRIVING_LICENSE</option>
-                                <option value="RC_BOOK">RC_BOOK</option>
-                                <option value="REPAIR_ESTIMATE">REPAIR_ESTIMATE</option>
-                                <option value="INVOICE">INVOICE</option>
-                              </select>
-                            </div>
-
-                            <div>
-                              <div className="nx-label">File</div>
-                              <input
-                                type="file"
-                                accept=".pdf,image/*"
-                                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                                className="nx-file-input"
-                              />
-                              {uploadFile && (
-                                <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>
-                                  Selected: {uploadFile.name}
-                                </div>
-                              )}
-                            </div>
-
-                            {uploadError && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{uploadError}</div>}
-                            {uploadMessage && <div style={{ color: 'rgba(255,255,255,0.7)' }}>{uploadMessage}</div>}
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                              <button
-                                type="button"
-                                disabled={uploading}
-                                onClick={handleUpload}
-                                className="water-btn water-btn--sm"
-                              >
-                                {uploading ? 'Uploading…' : 'Upload'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {currentStatus === 'REJECTED' && (
-                        <div style={{ ...alertStyle, marginTop: 18, border: '1px solid rgba(255,120,120,0.45)' }}>
-                          <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'rgba(255,120,120,0.95)' }}>
-                            Claim Rejected
-                          </div>
-                          <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            Reason: {claimDetail?.rejection_reason || '—'}
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{ marginTop: 22 }}>
-                        <div style={{ fontSize: '1.15rem', fontWeight: 500, letterSpacing: '-0.02em' }}>
-                          Timeline
-                        </div>
-                        <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
-                          {timelineEvents.map((ev, idx) => {
-                            const isRejected = ev.status === 'REJECTED'
-                            const isCurrent = ev.key === currentDominoKey
-                            const isDone = Boolean(ev.done)
-                            const dominoStyle = {
-                              padding: '18px 18px',
-                              borderRadius: '14px',
-                              background: 'rgba(255,255,255,0.02)',
-                              border: isRejected
-                                ? '1px solid rgba(255,120,120,0.45)'
-                                : isCurrent
-                                  ? '1px solid rgba(255,255,255,0.22)'
-                                  : isDone
-                                    ? '1px solid rgba(255,255,255,0.14)'
-                                    : '1px solid rgba(255,255,255,0.10)'
-                            }
-
-                            const dotStyle = {
-                              width: 10,
-                              height: 10,
-                              borderRadius: 999,
-                              background: isRejected
-                                ? 'rgba(255,120,120,0.95)'
-                                : isDone || isCurrent
-                                  ? 'rgba(255,255,255,0.82)'
-                                  : 'rgba(255,255,255,0.35)'
-                            }
-
-                            return (
-                              <div key={ev.key} style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: 14, alignItems: 'start' }}>
-                                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6 }}>
-                                  <div style={dotStyle} />
-                                </div>
-                                <div style={dominoStyle}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                                    <div style={{ fontSize: '1.05rem', fontWeight: 600, letterSpacing: '-0.01em', color: isRejected ? 'rgba(255,120,120,0.95)' : 'rgba(255,255,255,0.92)' }}>
-                                      {ev.label}
-                                    </div>
-                                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.92rem' }}>
-                                      {formatDateTime(ev.at)}
-                                    </div>
-                                  </div>
-
-                                  {ev.status === 'REJECTED' && (
-                                    <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', lineHeight: 1.6 }}>
-                                      Reason: {claimDetail?.rejection_reason || '—'}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-
-                          {timelineEvents.length === 0 && (
-                            <div style={{ color: 'rgba(255,255,255,0.65)' }}>
-                              No timeline events available.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </>
                   )}
                 </div>
+
+                {selectedClaimId && (
+                  <div style={{ ...panelStyle, minHeight: '100%' }}>
+                    {loadingSelected && <div style={{ color: 'rgba(255,255,255,0.7)' }}>Loading claim timeline…</div>}
+                    {!loadingSelected && selectedError && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{selectedError}</div>}
+
+                    {!loadingSelected && !selectedError && claimDetail && (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+                          <div>
+                            <div style={{ fontSize: '1.55rem', fontWeight: 560, letterSpacing: '-0.02em' }}>
+                              {claimDetail.claim_number || `Claim #${claimDetail.id}`}
+                            </div>
+                            <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.58)', fontSize: '0.98rem' }}>
+                              Incident: {formatDate(claimDetail.incident_date)} • Updated: {formatDateTime(claimDetail.updated_at)}
+                            </div>
+                          </div>
+                          <div style={badgeStyle}>{statusLabel(currentStatus)}</div>
+                        </div>
+
+                        <div style={{ marginTop: 16, color: 'rgba(255,255,255,0.78)', fontSize: '1.1rem', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                          {claimDetail.description || '—'}
+                        </div>
+
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                          <button type="button" className="water-btn water-btn--sm" onClick={() => navigate(`/my-claims/${selectedClaimId}`)}>
+                            Open Detailed Breakdown
+                          </button>
+                        </div>
+
+                        {currentStatus === 'DOCUMENT_REQUIRED' && (
+                          <div style={{ ...alertStyle, marginTop: 20 }}>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 500, letterSpacing: '-0.01em' }}>
+                              Action Required: Documents Needed
+                            </div>
+                            <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6 }}>
+                              Upload the requested documents to continue processing.
+                            </div>
+
+                            <div style={{ marginTop: 16, display: 'grid', gap: 14, maxWidth: 680 }}>
+                              <div>
+                                <div className="nx-label">Document Type</div>
+                                <select value={uploadDocumentType} onChange={(e) => setUploadDocumentType(e.target.value)} className="nx-select">
+                                  <option value="DAMAGE_PHOTOS">DAMAGE_PHOTOS</option>
+                                  <option value="FIR">FIR</option>
+                                  <option value="DRIVING_LICENSE">DRIVING_LICENSE</option>
+                                  <option value="RC_BOOK">RC_BOOK</option>
+                                  <option value="REPAIR_ESTIMATE">REPAIR_ESTIMATE</option>
+                                  <option value="INVOICE">INVOICE</option>
+                                </select>
+                              </div>
+
+                              <div>
+                                <div className="nx-label">File</div>
+                                <input
+                                  type="file"
+                                  accept=".pdf,image/*"
+                                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                                  className="nx-file-input"
+                                />
+                                {uploadFile && (
+                                  <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.65)', fontSize: '0.95rem' }}>
+                                    Selected: {uploadFile.name}
+                                  </div>
+                                )}
+                              </div>
+
+                              {uploadError && <div style={{ color: 'rgba(255,120,120,0.95)' }}>{uploadError}</div>}
+                              {uploadMessage && <div style={{ color: 'rgba(255,255,255,0.7)' }}>{uploadMessage}</div>}
+
+                              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  disabled={uploading}
+                                  onClick={handleUpload}
+                                  className="water-btn water-btn--sm"
+                                >
+                                  {uploading ? 'Uploading…' : 'Upload'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentStatus === 'REJECTED' && (
+                          <div style={{ ...alertStyle, marginTop: 20, border: '1px solid rgba(255,120,120,0.45)' }}>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'rgba(255,120,120,0.95)' }}>
+                              Claim Rejected
+                            </div>
+                            <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
+                              Reason: {claimDetail?.rejection_reason || '—'}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ marginTop: 24 }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 540, letterSpacing: '-0.02em' }}>
+                            Interactive Timeline
+                          </div>
+
+                          <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
+                            {timelineEvents.map((ev, idx) => {
+                              const isRejected = ev.status === 'REJECTED'
+                              const isCurrent = ev.key === currentDominoKey
+                              const isDone = Boolean(ev.done)
+                              const tooltipVisible = hoveredTimelineKey === ev.key
+
+                              const dominoStyle = {
+                                padding: '20px 20px',
+                                borderRadius: '14px',
+                                background: 'rgba(255,255,255,0.02)',
+                                border: isRejected
+                                  ? '1px solid rgba(255,120,120,0.45)'
+                                  : isCurrent
+                                    ? '1px solid rgba(255,255,255,0.22)'
+                                    : isDone
+                                      ? '1px solid rgba(255,255,255,0.14)'
+                                      : '1px solid rgba(255,255,255,0.1)',
+                                transformOrigin: 'left center',
+                                cursor: 'pointer',
+                                boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 0 0 rgba(0,0,0,0)'
+                              }
+
+                              const dotStyle = {
+                                width: 12,
+                                height: 12,
+                                borderRadius: 999,
+                                background: isRejected
+                                  ? 'rgba(255,120,120,0.95)'
+                                  : isDone || isCurrent
+                                    ? 'rgba(255,255,255,0.86)'
+                                    : 'rgba(255,255,255,0.35)',
+                                boxShadow: isCurrent
+                                  ? '0 0 0 6px rgba(255,255,255,0.08), 0 0 18px rgba(255,255,255,0.45)'
+                                  : 'none'
+                              }
+
+                              return (
+                                <div key={ev.key} style={{ display: 'grid', gridTemplateColumns: '26px 1fr', gap: 14, alignItems: 'start' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6, position: 'relative' }}>
+                                    <div style={dotStyle} />
+                                    {tooltipVisible && (
+                                      <div
+                                        style={{
+                                          position: 'absolute',
+                                          left: 20,
+                                          top: -6,
+                                          padding: '6px 10px',
+                                          borderRadius: 999,
+                                          border: '1px solid rgba(255,255,255,0.14)',
+                                          background: 'rgba(15,15,15,0.92)',
+                                          color: 'rgba(255,255,255,0.86)',
+                                          fontSize: '0.72rem',
+                                          letterSpacing: '0.08em',
+                                          textTransform: 'uppercase',
+                                          whiteSpace: 'nowrap',
+                                          zIndex: 3
+                                        }}
+                                      >
+                                        Stage {idx + 1}/{timelineEvents.length}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div
+                                    ref={(el) => {
+                                      timelineNodeRefs.current[idx] = el
+                                    }}
+                                    style={dominoStyle}
+                                    onMouseEnter={() => setHoveredTimelineKey(ev.key)}
+                                    onMouseLeave={() => setHoveredTimelineKey(null)}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                                      <div style={{ fontSize: '1.08rem', fontWeight: 600, letterSpacing: '-0.01em', color: isRejected ? 'rgba(255,120,120,0.95)' : 'rgba(255,255,255,0.92)' }}>
+                                        {ev.label}
+                                      </div>
+                                      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.94rem' }}>
+                                        {formatDateTime(ev.at)}
+                                      </div>
+                                    </div>
+
+                                    <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.62)', fontSize: '0.92rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                                      {isCurrent ? 'Current Stage' : isDone ? 'Completed Stage' : 'Pending Stage'}
+                                    </div>
+
+                                    {ev.status === 'REJECTED' && (
+                                      <div style={{ marginTop: 10, color: 'rgba(255,255,255,0.72)', lineHeight: 1.6 }}>
+                                        Reason: {claimDetail?.rejection_reason || '—'}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+
+                            {timelineEvents.length === 0 && (
+                              <div style={{ color: 'rgba(255,255,255,0.65)' }}>
+                                No timeline events available.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </>
-        )}
+            </>
+          )}
         </div>
       </div>
     </div>

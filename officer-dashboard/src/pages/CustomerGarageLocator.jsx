@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import CustomerAvatarLogout from '../components/CustomerAvatarLogout'
 
 const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif'
 
@@ -105,6 +106,7 @@ function CustomerGarageLocator() {
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <button type="button" className="water-btn water-btn--sm back-btn-cs" onClick={() => navigate('/customer-dashboard')}>Back to Dashboard</button>
+            <CustomerAvatarLogout />
           </div>
         </div>
 

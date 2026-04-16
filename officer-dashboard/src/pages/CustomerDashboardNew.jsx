@@ -1,11 +1,21 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { FileText, MapPin, Lock, Activity } from 'lucide-react';
+import CustomerAvatarLogout from '../components/CustomerAvatarLogout';
 
 gsap.registerPlugin(ScrollTrigger);
+
+const SAFETY_QUOTES = [
+  'Drive like every lane is watching out for you, and you for them.',
+  'A claim should feel like support, not a second accident.',
+  'Safe miles are built from small habits repeated every day.',
+  'In storms and traffic, patience is the strongest safety feature.',
+  'Prepared drivers prevent panic with calm, distance, and awareness.',
+  'Insurance is paperwork only on bad platforms, not on NexClaim.'
+]
 
 const CustomerDashboardNew = () => {
   const { auth, customerUser } = useAuth();
@@ -16,8 +26,10 @@ const CustomerDashboardNew = () => {
   const cardsContainerRef = useRef(null);
   const cardRefs = useRef([]);
   const cursorRef = useRef(null);
+  const quoteTextRef = useRef(null);
+  const [quoteIndex, setQuoteIndex] = useState(0);
 
-  const customerName = customerUser?.policeholderName || 'Customer';
+  const customerName = customerUser?.name || customerUser?.policeholderName || customerUser?.policyHolderName || 'Customer';
 
   // Protect route
   useEffect(() => {
@@ -145,6 +157,34 @@ const CustomerDashboardNew = () => {
           margin-top: -10vh;
         }
 
+        .hero-content-actions {
+          margin-top: 26px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+
+        .hero-back-main-btn {
+          border: 1px solid rgba(255, 255, 255, 0.24);
+          background: rgba(255, 255, 255, 0.04);
+          color: rgba(255, 255, 255, 0.92);
+          padding: 12px 20px;
+          border-radius: 999px;
+          font-size: 0.86rem;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+          font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+        }
+
+        .hero-back-main-btn:hover {
+          border-color: rgba(255, 255, 255, 0.48);
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
         .hero-greeting {
           font-size: clamp(3.5rem, 9vw, 9rem);
           font-weight: 500;
@@ -171,6 +211,40 @@ const CustomerDashboardNew = () => {
           padding: 20vh 6vw;
           background: #050505;
           z-index: 10;
+        }
+
+        .quotes-rotator-section {
+          position: relative;
+          padding: 0 6vw 14vh 6vw;
+          background: #050505;
+          z-index: 10;
+        }
+
+        .quotes-rotator-shell {
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background:
+            linear-gradient(140deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+            radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.2), transparent 45%);
+          padding: clamp(26px, 4vw, 42px);
+          backdrop-filter: blur(10px);
+        }
+
+        .quotes-kicker {
+          font-size: 0.74rem;
+          text-transform: uppercase;
+          letter-spacing: 0.14em;
+          color: rgba(255, 255, 255, 0.55);
+          margin-bottom: 14px;
+        }
+
+        .quote-line {
+          margin: 0;
+          font-size: clamp(1.3rem, 2.7vw, 2.25rem);
+          line-height: 1.35;
+          letter-spacing: -0.01em;
+          color: rgba(255, 255, 255, 0.96);
+          max-width: 1000px;
         }
 
         .cards-container {
@@ -440,6 +514,11 @@ const CustomerDashboardNew = () => {
           opacity: 0.7;
         }
 
+        .customer-dashboard .nx-customer-utility-bar {
+          z-index: 1600;
+          justify-content: flex-end;
+        }
+
         @media (max-width: 1024px) {
           .about-grid {
             grid-template-columns: 1fr;
@@ -502,6 +581,42 @@ const CustomerDashboardNew = () => {
       style.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (!quoteTextRef.current) return
+
+    gsap.fromTo(
+      quoteTextRef.current,
+      { autoAlpha: 0, y: 18 },
+      { autoAlpha: 1, y: 0, duration: 0.65, ease: 'power3.out' }
+    )
+  }, [quoteIndex])
+
+  useEffect(() => {
+    let activeTween = null
+    const intervalId = window.setInterval(() => {
+      const quoteEl = quoteTextRef.current
+      if (!quoteEl) {
+        setQuoteIndex((prev) => (prev + 1) % SAFETY_QUOTES.length)
+        return
+      }
+
+      activeTween = gsap.to(quoteEl, {
+        autoAlpha: 0,
+        y: -16,
+        duration: 0.45,
+        ease: 'power2.in',
+        onComplete: () => {
+          setQuoteIndex((prev) => (prev + 1) % SAFETY_QUOTES.length)
+        }
+      })
+    }, 5000)
+
+    return () => {
+      if (activeTween) activeTween.kill()
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   // GSAP staggered animations on mount
   useEffect(() => {
@@ -708,6 +823,9 @@ const CustomerDashboardNew = () => {
     >
       <div className="noise-overlay" />
       <div className="custom-cursor" ref={cursorRef} />
+      <div className="nx-customer-utility-bar">
+        <CustomerAvatarLogout />
+      </div>
 
       {/* Hero Section */}
       <section className="hero-section" ref={heroRef}>
@@ -728,6 +846,12 @@ const CustomerDashboardNew = () => {
           <p className="hero-subtext">
             Manage your claims and policies with full transparency. Everything you need is right here.
           </p>
+
+          <div className="hero-content-actions">
+            <button type="button" className="hero-back-main-btn magnetic-wrap" onClick={() => navigate('/')}>
+              <span className="magnetic-inner">← Back to Main Landing Page</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -754,6 +878,15 @@ const CustomerDashboardNew = () => {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="quotes-rotator-section" aria-live="polite">
+        <div className="quotes-rotator-shell">
+          <p className="quotes-kicker">Safety Signal</p>
+          <blockquote className="quote-line" ref={quoteTextRef}>
+            {SAFETY_QUOTES[quoteIndex]}
+          </blockquote>
         </div>
       </section>
 

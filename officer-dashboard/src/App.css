@@ -650,6 +650,7 @@ section h3 {
 .water-btn {
   position: relative;
   overflow: hidden;
+  --water-btn-hover-text: #111111;
   background: transparent;
   border: 1px solid #333333;
   color: #ffffff;
@@ -666,6 +667,12 @@ section h3 {
   font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
   z-index: 0;
   isolation: isolate;
+}
+
+.water-btn > * {
+  position: relative;
+  z-index: 1;
+  color: inherit;
 }
 
 .water-btn::before {
@@ -686,9 +693,15 @@ section h3 {
   border-radius: 0;
 }
 
-.water-btn:hover {
-  color: #1c1d20;
+.water-btn:hover,
+.water-btn:focus-visible {
+  color: var(--water-btn-hover-text) !important;
   border-color: #ffffff;
+}
+
+.water-btn:hover > *,
+.water-btn:focus-visible > * {
+  color: inherit !important;
 }
 
 .water-btn:disabled {
