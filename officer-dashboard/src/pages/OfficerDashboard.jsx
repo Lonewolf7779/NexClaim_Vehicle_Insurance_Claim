@@ -11,6 +11,93 @@ const REQUEST_DOCUMENT_TYPE_OPTIONS = [
   'DAMAGE_PHOTOS'
 ]
 
+const PREFILL_FIELD_ALIASES = {
+  repairEstimate: [
+    'estimated repair cost',
+    'estimated_repair_cost',
+    'repair estimate',
+    'repair_estimate',
+    'estimate amount',
+    'estimated amount',
+    'total repair cost',
+    'invoice amount',
+    'invoice total'
+  ],
+  depreciation: [
+    'depreciation',
+    'depreciation amount',
+    'depreciation_amount'
+  ],
+  deductible: [
+    'deductible',
+    'deductible amount',
+    'deductible_amount',
+    'policy deductible'
+  ],
+  vehicleAge: [
+    'vehicle age',
+    'vehicle_age',
+    'vehicle age years',
+    'vehicle_age_years',
+    'age of vehicle'
+  ],
+  partsDamaged: [
+    'parts damaged',
+    'parts_damaged',
+    'damaged parts',
+    'parts',
+    'damaged_part'
+  ],
+  partAmount: [
+    'parts amount',
+    'parts_amount',
+    'part amount',
+    'part_amount',
+    'parts cost',
+    'parts_cost',
+    'part cost',
+    'part_cost'
+  ]
+}
+
+const createDefaultPrefillTouched = () => ({
+  calcRepairEstimate: false,
+  calcDepreciation: false,
+  calcDeductible: false,
+  vehicleAgeYears: false,
+  deductibleAmount: false,
+  parts: false
+})
+
+const normalizeExtractionFieldName = (value) => {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+const parseNumericValue = (value) => {
+  if (value === null || value === undefined) return null
+  const cleaned = String(value)
+    .replace(/,/g, '')
+    .replace(/[^\d.-]/g, '')
+    .trim()
+
+  if (!cleaned) return null
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const splitPartsList = (value) => {
+  if (value === null || value === undefined) return []
+  return String(value)
+    .split(/[\n,;|/]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 // Section Card wrapper for workflow sections
 const SectionCard = ({ number, title, children, color = '#ffffff' }) => (
   <div style={{ marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#111', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
@@ -93,6 +180,8 @@ function OfficerDashboard({ onSwitchRole }) {
   const [daFetchError, setDaFetchError] = useState(null)
   const [daFetchInfo, setDaFetchInfo] = useState('')
   const [daLastSyncAt, setDaLastSyncAt] = useState(null)
+  const [prefillTouched, setPrefillTouched] = useState(createDefaultPrefillTouched)
+  const [prefillSources, setPrefillSources] = useState({})
 
   useEffect(() => {
     fetchClaims()
@@ -131,6 +220,30 @@ function OfficerDashboard({ onSwitchRole }) {
   const showSuccess = (msg) => {
     setSuccessMessage(msg)
     setTimeout(() => setSuccessMessage(null), 5000)
+  }
+
+  const markFieldTouched = (fieldName) => {
+    setPrefillTouched((prev) => (prev[fieldName] ? prev : { ...prev, [fieldName]: true }))
+  }
+
+  const buildDocumentUrl = (filePath) => {
+    if (!filePath || typeof filePath !== 'string') return ''
+
+    const rawPath = filePath.trim()
+    if (!rawPath) return ''
+
+    if (/^https?:\/\//i.test(rawPath)) {
+      try {
+        const absolute = new URL(rawPath)
+        absolute.pathname = absolute.pathname.replace(/\/+/g, '/')
+        return absolute.toString()
+      } catch {
+        return rawPath
+      }
+    }
+
+    const normalizedPath = `/${rawPath.replace(/^\/+/, '').replace(/\\/g, '/')}`.replace(/\/+/g, '/')
+    return `http://localhost:8000${normalizedPath}`
   }
 
   const hydrateSurveyContext = (claimData, reports = []) => {
@@ -215,6 +328,134 @@ function OfficerDashboard({ onSwitchRole }) {
     return () => clearInterval(intervalId)
   }, [selectedClaim?.id])
 
+  useEffect(() => {
+    if (!selectedClaim?.id || !Array.isArray(daExtractedDocuments) || daExtractedDocuments.length === 0) {
+      return
+    }
+
+    const fieldValueByName = new Map()
+    const fieldSourceByName = new Map()
+
+    daExtractedDocuments.forEach((doc) => {
+      const fields = Array.isArray(doc?.fields) ? doc.fields : []
+      fields.forEach((field) => {
+        const normalizedName = normalizeExtractionFieldName(field?.field_name)
+        const value = String(field?.field_value ?? '').trim()
+        if (!normalizedName || !value || fieldValueByName.has(normalizedName)) {
+          return
+        }
+
+        fieldValueByName.set(normalizedName, value)
+        fieldSourceByName.set(normalizedName, {
+          fieldName: String(field?.field_name || normalizedName),
+          documentType: String(doc?.document_type || 'DOCUMENT')
+        })
+      })
+    })
+
+    if (fieldValueByName.size === 0) {
+      return
+    }
+
+    const findFirstMatch = (aliases) => {
+      for (const alias of aliases) {
+        const normalizedAlias = normalizeExtractionFieldName(alias)
+        if (fieldValueByName.has(normalizedAlias)) {
+          return {
+            value: fieldValueByName.get(normalizedAlias),
+            source: fieldSourceByName.get(normalizedAlias)
+          }
+        }
+      }
+      return null
+    }
+
+    const toSourceLabel = (match) => {
+      const fieldName = match?.source?.fieldName || 'Unknown field'
+      const docType = String(match?.source?.documentType || 'DOCUMENT').replace(/_/g, ' ')
+      return `${fieldName} (${docType})`
+    }
+
+    const sourceUpdates = {}
+    let hasPrefillUpdate = false
+
+    const repairEstimateMatch = findFirstMatch(PREFILL_FIELD_ALIASES.repairEstimate)
+    if (!prefillTouched.calcRepairEstimate && repairEstimateMatch) {
+      const numeric = parseNumericValue(repairEstimateMatch.value)
+      setCalcRepairEstimate(numeric === null ? repairEstimateMatch.value : String(numeric))
+      sourceUpdates.calcRepairEstimate = toSourceLabel(repairEstimateMatch)
+      hasPrefillUpdate = true
+    }
+
+    const depreciationMatch = findFirstMatch(PREFILL_FIELD_ALIASES.depreciation)
+    if (!prefillTouched.calcDepreciation && depreciationMatch) {
+      const numeric = parseNumericValue(depreciationMatch.value)
+      setCalcDepreciation(numeric === null ? depreciationMatch.value : String(numeric))
+      sourceUpdates.calcDepreciation = toSourceLabel(depreciationMatch)
+      hasPrefillUpdate = true
+    }
+
+    const deductibleMatch = findFirstMatch(PREFILL_FIELD_ALIASES.deductible)
+    if (deductibleMatch) {
+      const numeric = parseNumericValue(deductibleMatch.value)
+      const normalizedValue = numeric === null ? deductibleMatch.value : String(numeric)
+
+      if (!prefillTouched.calcDeductible) {
+        setCalcDeductible(normalizedValue)
+        sourceUpdates.calcDeductible = toSourceLabel(deductibleMatch)
+        hasPrefillUpdate = true
+      }
+
+      if (!prefillTouched.deductibleAmount) {
+        setDeductibleAmount(normalizedValue)
+        sourceUpdates.deductibleAmount = toSourceLabel(deductibleMatch)
+        hasPrefillUpdate = true
+      }
+    }
+
+    const vehicleAgeMatch = findFirstMatch(PREFILL_FIELD_ALIASES.vehicleAge)
+    if (!prefillTouched.vehicleAgeYears && vehicleAgeMatch) {
+      const numeric = parseNumericValue(vehicleAgeMatch.value)
+      setVehicleAgeYears(numeric === null ? vehicleAgeMatch.value : String(numeric))
+      sourceUpdates.vehicleAgeYears = toSourceLabel(vehicleAgeMatch)
+      hasPrefillUpdate = true
+    }
+
+    const partsMatch = findFirstMatch(PREFILL_FIELD_ALIASES.partsDamaged)
+    const partAmountMatch = findFirstMatch(PREFILL_FIELD_ALIASES.partAmount)
+    if (!prefillTouched.parts && partsMatch) {
+      const partNames = splitPartsList(partsMatch.value)
+      const parsedPartAmount = partAmountMatch ? parseNumericValue(partAmountMatch.value) : null
+
+      if (partNames.length > 0) {
+        setParts(
+          partNames.map((partName, index) => ({
+            type: partName,
+            amount: index === 0 && parsedPartAmount !== null ? String(parsedPartAmount) : ''
+          }))
+        )
+      } else {
+        setParts([
+          {
+            type: String(partsMatch.value),
+            amount: parsedPartAmount !== null ? String(parsedPartAmount) : ''
+          }
+        ])
+      }
+
+      sourceUpdates.parts = toSourceLabel(partsMatch)
+      hasPrefillUpdate = true
+    }
+
+    if (Object.keys(sourceUpdates).length > 0) {
+      setPrefillSources((prev) => ({ ...prev, ...sourceUpdates }))
+    }
+
+    if (!hasPrefillUpdate) {
+      return
+    }
+  }, [daExtractedDocuments, prefillTouched, selectedClaim?.id])
+
   const refreshClaimData = async (claimId) => {
     try {
       const claimResponse = await claimService.getClaim(claimId)
@@ -248,6 +489,8 @@ function OfficerDashboard({ onSwitchRole }) {
     setVehicleAgeYears('')
     setParts([{ type: '', amount: '' }])
     setDeductibleAmount('')
+    setPrefillTouched(createDefaultPrefillTouched())
+    setPrefillSources({})
     setRejectionReason('')
     setEscalationReason('')
     setReinspectionReason('')
@@ -314,6 +557,8 @@ function OfficerDashboard({ onSwitchRole }) {
     setDaFetchError(null)
     setDaFetchInfo('')
     setDaLastSyncAt(null)
+    setPrefillTouched(createDefaultPrefillTouched())
+    setPrefillSources({})
     fetchClaims()
   }
 
@@ -562,13 +807,22 @@ function OfficerDashboard({ onSwitchRole }) {
   }
 
   // Parts management
-  const addPart = () => setParts([...parts, { type: '', amount: '' }])
-  const updatePart = (index, field, value) => {
-    const newParts = [...parts]
-    newParts[index][field] = value
-    setParts(newParts)
+  const addPart = () => {
+    markFieldTouched('parts')
+    setParts((prev) => [...prev, { type: '', amount: '' }])
   }
-  const removePart = (index) => setParts(parts.filter((_, i) => i !== index))
+  const updatePart = (index, field, value) => {
+    markFieldTouched('parts')
+    setParts((prev) =>
+      prev.map((part, partIndex) =>
+        partIndex === index ? { ...part, [field]: value } : part
+      )
+    )
+  }
+  const removePart = (index) => {
+    markFieldTouched('parts')
+    setParts((prev) => prev.filter((_, i) => i !== index))
+  }
 
   // -----------------------------------------------
   // Computed Values
@@ -1163,8 +1417,11 @@ function OfficerDashboard({ onSwitchRole }) {
     const filePath = doc?.file_path
     if (!filePath) return
 
-    const separator = filePath.includes('?') ? '&' : '?'
-    const url = `http://localhost:8000${filePath}${separator}t=${Date.now()}`
+    const baseUrl = buildDocumentUrl(filePath)
+    if (!baseUrl) return
+
+    const separator = baseUrl.includes('?') ? '&' : '?'
+    const url = `${baseUrl}${separator}t=${Date.now()}`
     setPreviewDoc({ label, url })
   }
 
@@ -1596,17 +1853,17 @@ function OfficerDashboard({ onSwitchRole }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '32px' }}>
         <div>
           <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REPAIR ESTIMATE (₹)</label>
-          <input type="number" value={calcRepairEstimate} onChange={e => setCalcRepairEstimate(e.target.value)}
+          <input type="number" value={calcRepairEstimate} onChange={e => { markFieldTouched('calcRepairEstimate'); setCalcRepairEstimate(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
         <div>
           <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEPRECIATION (₹)</label>
-          <input type="number" value={calcDepreciation} onChange={e => setCalcDepreciation(e.target.value)}
+          <input type="number" value={calcDepreciation} onChange={e => { markFieldTouched('calcDepreciation'); setCalcDepreciation(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
         <div>
           <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEDUCTIBLE (₹)</label>
-          <input type="number" value={calcDeductible} onChange={e => setCalcDeductible(e.target.value)}
+          <input type="number" value={calcDeductible} onChange={e => { markFieldTouched('calcDeductible'); setCalcDeductible(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
       </div>
@@ -1626,6 +1883,25 @@ function OfficerDashboard({ onSwitchRole }) {
   // SECTION 11 — Decision Panel
   // -----------------------------------------------
   const renderSection11 = () => {
+    const verificationDoc =
+      daExtractedDocuments.find((doc) => Boolean(doc?.file_path)) ||
+      claimDocuments.find((doc) => Boolean(doc?.file_path)) ||
+      null
+
+    const partsPreviewValue = parts
+      .map((part) => String(part?.type || '').trim())
+      .filter(Boolean)
+      .join(', ')
+
+    const prefillSummary = [
+      { key: 'calcRepairEstimate', label: 'Repair Estimate', value: calcRepairEstimate, source: prefillSources.calcRepairEstimate },
+      { key: 'calcDepreciation', label: 'Depreciation', value: calcDepreciation, source: prefillSources.calcDepreciation },
+      { key: 'calcDeductible', label: 'Deductible (Calculator)', value: calcDeductible, source: prefillSources.calcDeductible },
+      { key: 'vehicleAgeYears', label: 'Vehicle Age', value: vehicleAgeYears, source: prefillSources.vehicleAgeYears },
+      { key: 'parts', label: 'Parts Damaged', value: partsPreviewValue, source: prefillSources.parts },
+      { key: 'deductibleAmount', label: 'Deductible (Approval)', value: deductibleAmount, source: prefillSources.deductibleAmount }
+    ].filter((item) => item.source)
+
     if (isTerminal || status === 'APPROVED') {
       return (
         <SectionCard number="11" title="DECISION_PANEL">
@@ -1651,6 +1927,52 @@ function OfficerDashboard({ onSwitchRole }) {
             COMPLETE PREVIOUS REVIEW STEPS BEFORE MAKING A DECISION. CURRENT STATUS: {status}
           </div>
         )}
+
+        <div style={{ marginBottom: '24px', padding: '18px 20px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: '#38bdf8', fontSize: '12px', letterSpacing: '0.08em', fontWeight: '800', textTransform: 'uppercase' }}>
+                PREFILLED FROM DA EXTRACTION
+              </div>
+              <div style={{ color: '#a3a3a3', fontSize: '12px', marginTop: '6px', letterSpacing: '0.03em' }}>
+                Review values against the raw document before approving, rejecting, or escalating.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => verificationDoc && handleViewDocument(verificationDoc)}
+              disabled={!verificationDoc}
+              onMouseEnter={verificationDoc ? hoverEffect : null}
+              onMouseLeave={verificationDoc ? leaveEffect : null}
+              style={{
+                ...btnOutline,
+                padding: '9px 14px',
+                fontSize: '11px',
+                opacity: verificationDoc ? 1 : 0.35,
+                cursor: verificationDoc ? 'pointer' : 'not-allowed'
+              }}
+            >
+              VIEW RAW DOCUMENT
+            </button>
+          </div>
+
+          {prefillSummary.length > 0 ? (
+            <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+              {prefillSummary.map((item) => (
+                <div key={item.key} style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}>
+                  <div style={{ color: '#fff', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700' }}>{item.label}</div>
+                  <div style={{ color: '#e0e0e0', fontSize: '13px', marginTop: '6px', wordBreak: 'break-word' }}>{item.value || 'N/A'}</div>
+                  <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '6px', letterSpacing: '0.03em' }}>{item.source}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ marginTop: '12px', color: '#a3a3a3', fontSize: '12px', letterSpacing: '0.03em' }}>
+              No DA field mapping has been applied yet. Use REFRESH_DA_DATA in section 14 to pull extracted fields.
+            </div>
+          )}
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
           {/* Approve */}
           <div style={{ border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '16px', padding: '24px', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
@@ -1658,7 +1980,7 @@ function OfficerDashboard({ onSwitchRole }) {
             <form onSubmit={handleApprove}>
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>VEHICLE AGE (YRS)</label>
-                <input type="number" step="0.1" value={vehicleAgeYears} onChange={e => setVehicleAgeYears(e.target.value)} required
+                <input type="number" step="0.1" value={vehicleAgeYears} onChange={e => { markFieldTouched('vehicleAgeYears'); setVehicleAgeYears(e.target.value) }} required
                   style={brutalInput} />
               </div>
               <div style={{ marginBottom: '24px' }}>
@@ -1681,7 +2003,7 @@ function OfficerDashboard({ onSwitchRole }) {
               </div>
               <div style={{ marginBottom: '24px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEDUCTIBLE (₹)</label>
-                <input type="number" step="0.01" value={deductibleAmount} onChange={e => setDeductibleAmount(e.target.value)} required
+                <input type="number" step="0.01" value={deductibleAmount} onChange={e => { markFieldTouched('deductibleAmount'); setDeductibleAmount(e.target.value) }} required
                   style={brutalInput} />
               </div>
               <button type="submit" disabled={loading || !canDecide}

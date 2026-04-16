@@ -21,6 +21,10 @@ DA_SUCCESS_DIR = os.path.join(BASE_OPS_DIR, "DA_Success")
 DA_ARCHIVE_DIR = os.path.join(BASE_OPS_DIR, "DA_Archive")
 DA_SUCCESS_SUBDIR = os.path.join(DA_SUCCESS_DIR, "Success")
 
+os.makedirs(DA_SUCCESS_DIR, exist_ok=True)
+os.makedirs(DA_ARCHIVE_DIR, exist_ok=True)
+os.makedirs(DA_SUCCESS_SUBDIR, exist_ok=True)
+
 # Some DA bots drop output in DA_Success\Success, while others use DA_Success directly.
 DA_SCAN_DIR = DA_SUCCESS_SUBDIR if os.path.isdir(DA_SUCCESS_SUBDIR) else DA_SUCCESS_DIR
 
@@ -29,10 +33,6 @@ CLAIM_ID_PATTERN = re.compile(r"CLAIM[_-]?(\d+)", re.IGNORECASE)
 
 # Keep processed files in DA_Success but avoid reprocessing unchanged files every loop.
 PROCESSED_FILE_SIGNATURES: Dict[str, Tuple[int, int]] = {}
-
-os.makedirs(DA_SUCCESS_DIR, exist_ok=True)
-os.makedirs(DA_ARCHIVE_DIR, exist_ok=True)
-os.makedirs(DA_SUCCESS_SUBDIR, exist_ok=True)
 
 
 def _clean_cell(value) -> str:
@@ -79,9 +79,9 @@ def _extract_fields_from_dataframe(df: pd.DataFrame) -> List[Tuple[str, str, flo
 
     normalized = {str(col).strip().lower(): col for col in df.columns}
 
-    field_col = next((normalized[key] for key in ("field", "field_name", "name", "key") if key in normalized), None)
-    value_col = next((normalized[key] for key in ("value", "field_value", "extracted_value", "result") if key in normalized), None)
-    confidence_col = next((normalized[key] for key in ("confidence", "confidence_score", "score") if key in normalized), None)
+    field_col = next((normalized[key] for key in ("field", "field_name", "field name", "name", "key") if key in normalized), None)
+    value_col = next((normalized[key] for key in ("value", "field_value", "field value", "extracted_value", "result") if key in normalized), None)
+    confidence_col = next((normalized[key] for key in ("confidence", "confidence_score", "confidence score", "score") if key in normalized), None)
 
     # Vertical shape: Field | Value | Confidence
     if field_col and value_col:
