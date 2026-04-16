@@ -26,7 +26,8 @@ os.makedirs(DA_ARCHIVE_DIR, exist_ok=True)
 os.makedirs(DA_SUCCESS_SUBDIR, exist_ok=True)
 
 # Some DA bots drop output in DA_Success\Success, while others use DA_Success directly.
-DA_SCAN_DIR = DA_SUCCESS_SUBDIR if os.path.isdir(DA_SUCCESS_SUBDIR) else DA_SUCCESS_DIR
+# By setting DA_SCAN_DIR to DA_SUCCESS_DIR, os.walk will recursively scan both directories.
+DA_SCAN_DIR = DA_SUCCESS_DIR
 
 SUPPORTED_EXTENSIONS = ('.xlsx', '.xls', '.csv')
 CLAIM_ID_PATTERN = re.compile(r"CLAIM[_-]?(\d+)", re.IGNORECASE)
@@ -40,7 +41,7 @@ def _clean_cell(value) -> str:
         return ""
     if pd.isna(value):
         return ""
-    text = str(value).strip()
+    text = str(value).replace('\ufeff', '').strip()
     if text.lower() in {"nan", "none", "null"}:
         return ""
     return text
@@ -77,7 +78,7 @@ def _extract_fields_from_dataframe(df: pd.DataFrame) -> List[Tuple[str, str, flo
     if df is None or df.empty:
         return extracted_fields
 
-    normalized = {str(col).strip().lower(): col for col in df.columns}
+    normalized = {str(col).replace('\ufeff', '').strip().lower(): col for col in df.columns}
 
     field_col = next((normalized[key] for key in ("field", "field_name", "field name", "name", "key") if key in normalized), None)
     value_col = next((normalized[key] for key in ("value", "field_value", "field value", "extracted_value", "result") if key in normalized), None)
@@ -190,6 +191,7 @@ def _process_da_file(file_path: str) -> bool:
     extracted_fields = _extract_fields_from_dataframe(df)
     if not extracted_fields:
         print(f"No extractable fields found in {os.path.basename(file_path)}")
+        print(f"Debug - Raw DataFrame headers found: {list(df.columns)}")
         return False
 
     db = SessionLocal()

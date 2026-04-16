@@ -21,7 +21,9 @@ const PREFILL_FIELD_ALIASES = {
     'estimated amount',
     'total repair cost',
     'invoice amount',
-    'invoice total'
+    'invoice total',
+    'total amount',
+    'total_amount'
   ],
   depreciation: [
     'depreciation',
@@ -46,7 +48,8 @@ const PREFILL_FIELD_ALIASES = {
     'parts_damaged',
     'damaged parts',
     'parts',
-    'damaged_part'
+    'damaged_part',
+    'description'
   ],
   partAmount: [
     'parts amount',
