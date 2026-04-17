@@ -2,6 +2,26 @@ import React, { useState, useEffect, useRef } from 'react'
 import { claimService, policyService } from '../services/api'
 import gsap from 'gsap'
 
+const FONT_STACK = '"Helvetica Neue", "Neue Montreal", Arial, sans-serif'
+
+const STATUS_LABELS = {
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under Review',
+  DOCUMENT_REQUIRED: 'Documents Required',
+  SURVEY_ASSIGNED: 'Survey Assigned',
+  SURVEY_COMPLETED: 'Survey Completed',
+  UNDER_INVESTIGATION: 'Under Investigation',
+  PROCESSING: 'Processing',
+  READY_FOR_REVIEW: 'Ready For Review',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  ESCALATED: 'Escalated',
+  REPAIR_IN_PROGRESS: 'Repair In Progress',
+  PAYMENT_PROCESSING: 'Payment Processing',
+  PAID: 'Paid',
+  CLOSED: 'Closed'
+}
+
 const REQUEST_DOCUMENT_TYPE_OPTIONS = [
   'DRIVING_LICENSE',
   'RC_BOOK',
@@ -101,19 +121,148 @@ const splitPartsList = (value) => {
     .filter(Boolean)
 }
 
+const splitNarrativeLines = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ['No description provided']
+
+  const newlineParts = raw
+    .split(/\r?\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (newlineParts.length > 1) return newlineParts
+
+  const sentenceParts = raw
+    .replace(/([.!?])\s+/g, '$1\n')
+    .split('\n')
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  return sentenceParts.length > 1 ? sentenceParts : [raw]
+}
+
+const SECTION_SHAPE_PALETTES = [
+  {
+    primary: 'rgba(142, 184, 255, 0.95)',
+    secondary: 'rgba(122, 238, 206, 0.9)',
+    soft: 'rgba(132, 185, 255, 0.2)',
+    stroke: 'rgba(184, 206, 255, 0.82)'
+  },
+  {
+    primary: 'rgba(255, 187, 122, 0.95)',
+    secondary: 'rgba(255, 132, 154, 0.9)',
+    soft: 'rgba(255, 182, 124, 0.2)',
+    stroke: 'rgba(255, 216, 168, 0.8)'
+  },
+  {
+    primary: 'rgba(158, 245, 210, 0.94)',
+    secondary: 'rgba(123, 191, 255, 0.9)',
+    soft: 'rgba(154, 242, 211, 0.2)',
+    stroke: 'rgba(187, 248, 226, 0.82)'
+  },
+  {
+    primary: 'rgba(214, 176, 255, 0.94)',
+    secondary: 'rgba(151, 226, 255, 0.9)',
+    soft: 'rgba(210, 170, 255, 0.2)',
+    stroke: 'rgba(229, 211, 255, 0.84)'
+  }
+]
+
 // Section Card wrapper for workflow sections
-const SectionCard = ({ number, title, children, color = '#ffffff' }) => (
-  <div style={{ marginBottom: '20px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', overflow: 'hidden', backgroundColor: '#111', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-    <div style={{ padding: '16px 24px', backgroundColor: '#0d0d0d', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <span style={{ backgroundColor: '#fff', color: '#000', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '800', flexShrink: 0 }}>{number}</span>
-      <h4 style={{ margin: 0, fontSize: '18px', color: '#fff', fontWeight: '600', letterSpacing: '-0.5px' }}>{title}</h4>
-    </div>
-    <div style={{ padding: '24px', color: '#e0e0e0' }}>{children}</div>
-  </div>
-)
+const SectionCard = ({ number, title, children }) => {
+  const parsedNumber = Number.parseInt(String(number), 10)
+  const safeIndex = Number.isNaN(parsedNumber) ? 0 : Math.abs(parsedNumber)
+  const palette = SECTION_SHAPE_PALETTES[safeIndex % SECTION_SHAPE_PALETTES.length]
+
+  return (
+    <section
+      className="od-section-card od-anim-item"
+      style={{
+        marginBottom: 0,
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '22px',
+        overflow: 'hidden',
+        background: 'linear-gradient(170deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012))',
+        boxShadow: '0 24px 60px rgba(0,0,0,0.36)',
+        width: '100%',
+        minHeight: '220px',
+        position: 'relative'
+      }}
+    >
+      <div
+        style={{
+          padding: '16px 22px',
+          background: 'rgba(255,255,255,0.02)',
+          borderBottom: '1px solid rgba(255,255,255,0.09)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}
+      >
+        <span
+          style={{
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(255,255,255,0.68))',
+            color: '#111111',
+            minWidth: '32px',
+            height: '32px',
+            padding: '0 10px',
+            borderRadius: '999px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            fontWeight: '700',
+            letterSpacing: '0.08em',
+            textTransform: 'none',
+            flexShrink: 0
+          }}
+        >
+          {number}
+        </span>
+        <h4 style={{ margin: 0, fontSize: '1.08rem', color: 'rgba(255,255,255,0.96)', fontWeight: 520, letterSpacing: '-0.01em' }}>
+          {title}
+        </h4>
+        <div
+          aria-hidden
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            opacity: 0.95
+          }}
+        >
+          <span style={{ width: '11px', height: '11px', borderRadius: '50%', background: palette.primary, boxShadow: `0 0 0 3px ${palette.soft}` }} />
+          <span style={{ width: '11px', height: '11px', borderRadius: '3px', transform: 'rotate(45deg)', background: palette.secondary, boxShadow: `0 0 0 3px ${palette.soft}` }} />
+          <span style={{ width: '18px', height: '4px', borderRadius: '999px', background: palette.stroke }} />
+        </div>
+      </div>
+      <div style={{ padding: '18px', color: 'rgba(255,255,255,0.84)', position: 'relative', zIndex: 1 }}>{children}</div>
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          width: '68px',
+          height: '68px',
+          borderRadius: '18px',
+          border: `1px solid ${palette.soft}`,
+          right: '14px',
+          bottom: '10px',
+          transform: 'rotate(14deg)',
+          opacity: 0.38,
+          pointerEvents: 'none'
+        }}
+      />
+    </section>
+  )
+}
 
 function OfficerDashboard({ onSwitchRole }) {
   const dashboardRef = useRef(null)
+  const queueViewRef = useRef(null)
+  const workflowViewRef = useRef(null)
+  const sectionStageRef = useRef(null)
+  const ambientOrbRefs = useRef([])
 
   // Claims queue state
   const [claims, setClaims] = useState([])
@@ -125,6 +274,8 @@ function OfficerDashboard({ onSwitchRole }) {
 
   // Selected claim state
   const [selectedClaim, setSelectedClaim] = useState(null)
+  const [workflowPage, setWorkflowPage] = useState(0)
+  const [viewportWidth, setViewportWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1440))
   const [policy, setPolicy] = useState(null)
   const [claimHistory, setClaimHistory] = useState([])
   const [surveyReports, setSurveyReports] = useState([])
@@ -189,12 +340,45 @@ function OfficerDashboard({ onSwitchRole }) {
   useEffect(() => {
     fetchClaims()
     const ctx = gsap.context(() => {
-      gsap.fromTo(dashboardRef.current, 
-        { autoAlpha: 0, y: 30 },
-        { autoAlpha: 1, y: 0, duration: 1.2, ease: 'expo.out', delay: 0.2 }
+      gsap.fromTo(
+        dashboardRef.current,
+        { autoAlpha: 0, y: 28, filter: 'blur(10px)' },
+        { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: 1.25, ease: 'expo.out', delay: 0.12 }
       )
+
+      const orbNodes = ambientOrbRefs.current.filter(Boolean)
+      if (orbNodes.length) {
+        gsap.fromTo(
+          orbNodes,
+          { autoAlpha: 0, scale: 0.92 },
+          { autoAlpha: 0.9, scale: 1, duration: 1.15, stagger: 0.16, ease: 'power3.out', delay: 0.18 }
+        )
+
+        orbNodes.forEach((node, idx) => {
+          gsap.to(node, {
+            y: idx % 2 === 0 ? -20 : 24,
+            x: idx % 2 === 0 ? 16 : -14,
+            duration: 3.6 + idx,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut'
+          })
+        })
+      }
     }, dashboardRef)
     return () => ctx.revert()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   // -----------------------------------------------
@@ -474,6 +658,7 @@ function OfficerDashboard({ onSwitchRole }) {
 
   const handleOpenClaim = async (claim) => {
     setSelectedClaim(claim)
+    setWorkflowPage(0)
     setPolicy(null)
     setClaimHistory([])
     setSurveyReports([])
@@ -551,6 +736,7 @@ function OfficerDashboard({ onSwitchRole }) {
 
   const handleBackToQueue = () => {
     setSelectedClaim(null)
+    setWorkflowPage(0)
     setPolicy(null)
     setClaimHistory([])
     setSurveyReports([])
@@ -563,6 +749,12 @@ function OfficerDashboard({ onSwitchRole }) {
     setPrefillTouched(createDefaultPrefillTouched())
     setPrefillSources({})
     fetchClaims()
+  }
+
+  const handleExitRole = () => {
+    if (typeof onSwitchRole === 'function') {
+      onSwitchRole()
+    }
   }
 
   // -----------------------------------------------
@@ -850,24 +1042,41 @@ function OfficerDashboard({ onSwitchRole }) {
     }).format(Number(value))
   }
 
+  const getStatusLabel = (value) => STATUS_LABELS[value] || value || 'Unknown'
+
+  const toReadableLabel = (value) => {
+    if (!value) return ''
+
+    return String(value)
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .replace(/\bRc\b/g, 'RC')
+      .replace(/\bIdv\b/g, 'IDV')
+      .replace(/\bFir\b/g, 'FIR')
+      .replace(/\bPan\b/g, 'PAN')
+      .replace(/\bAi\b/g, 'AI')
+      .trim()
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'SUBMITTED': return '#757575'
-      case 'UNDER_REVIEW': return '#1976d2'
-      case 'DOCUMENT_REQUIRED': return '#ff9800'
-      case 'SURVEY_ASSIGNED': return '#00bcd4'
-      case 'SURVEY_COMPLETED': return '#009688'
-      case 'UNDER_INVESTIGATION': return '#e91e63'
-      case 'PROCESSING': return '#2196f3'
-      case 'READY_FOR_REVIEW': return '#9c27b0'
-      case 'APPROVED': return '#4caf50'
-      case 'REJECTED': return '#f44336'
-      case 'ESCALATED': return '#ff9800'
-      case 'REPAIR_IN_PROGRESS': return '#ff5722'
-      case 'PAYMENT_PROCESSING': return '#3f51b5'
-      case 'PAID': return '#4caf50'
-      case 'CLOSED': return '#607d8b'
-      default: return '#757575'
+      case 'SUBMITTED': return '#a3a3a3'
+      case 'UNDER_REVIEW': return '#60a5fa'
+      case 'DOCUMENT_REQUIRED': return '#fbbf24'
+      case 'SURVEY_ASSIGNED': return '#38bdf8'
+      case 'SURVEY_COMPLETED': return '#2dd4bf'
+      case 'UNDER_INVESTIGATION': return '#f472b6'
+      case 'PROCESSING': return '#60a5fa'
+      case 'READY_FOR_REVIEW': return '#c084fc'
+      case 'APPROVED': return '#34d399'
+      case 'REJECTED': return '#f87171'
+      case 'ESCALATED': return '#f59e0b'
+      case 'REPAIR_IN_PROGRESS': return '#fb923c'
+      case 'PAYMENT_PROCESSING': return '#818cf8'
+      case 'PAID': return '#22c55e'
+      case 'CLOSED': return '#94a3b8'
+      default: return '#a3a3a3'
     }
   }
 
@@ -958,44 +1167,169 @@ function OfficerDashboard({ onSwitchRole }) {
   const canDecide = ['UNDER_REVIEW', 'SURVEY_COMPLETED', 'READY_FOR_REVIEW'].includes(status)
   const canRequestDocuments = ['UNDER_REVIEW', 'SUBMITTED'].includes(status)
 
-  // Reusable styles for dark brutalist aesthetic
-  const btnPrimary = { padding: '12px 24px', cursor: 'pointer', backgroundColor: '#fff', color: '#0d0d0d', border: 'none', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
-  const btnSuccess = { padding: '12px 24px', cursor: 'pointer', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
-  const btnDanger = { padding: '12px 24px', cursor: 'pointer', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
-  const btnWarning = { padding: '12px 24px', cursor: 'pointer', backgroundColor: '#f59e0b', color: '#000', border: 'none', borderRadius: '999px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.02em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
-  const btnOutline = { padding: '12px 24px', cursor: 'pointer', backgroundColor: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '999px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease' }
-  
-  const infoGrid = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '15px' }
-  const infoItem = { padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }
-  const infoLabel = { color: '#a3a3a3', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.1em', display: 'block', marginBottom: '8px', fontWeight: '600' }
+  // Reusable styles aligned with customer portal aesthetic
+  const baseButton = {
+    padding: '11px 20px',
+    cursor: 'pointer',
+    border: '1px solid rgba(255,255,255,0.18)',
+    borderRadius: '999px',
+    fontWeight: '600',
+    letterSpacing: '0.04em',
+    fontSize: '0.78rem',
+    textTransform: 'none',
+    color: '#f6f7f8',
+    fontFamily: FONT_STACK,
+    transition: 'transform 0.28s ease, box-shadow 0.28s ease, border-color 0.24s ease, background-color 0.24s ease',
+    backdropFilter: 'blur(10px)'
+  }
+
+  const btnPrimary = {
+    ...baseButton,
+    background: 'linear-gradient(145deg, rgba(255,255,255,0.96), rgba(241,241,241,0.85))',
+    color: '#121316',
+    border: '1px solid rgba(255,255,255,0.55)',
+    boxShadow: '0 10px 24px rgba(255,255,255,0.1)'
+  }
+
+  const btnSuccess = {
+    ...baseButton,
+    background: 'linear-gradient(145deg, rgba(16,185,129,0.96), rgba(16,185,129,0.64))',
+    border: '1px solid rgba(16,185,129,0.52)',
+    color: '#f6fffb',
+    boxShadow: '0 14px 30px rgba(16,185,129,0.24)'
+  }
+
+  const btnDanger = {
+    ...baseButton,
+    background: 'linear-gradient(145deg, rgba(239,68,68,0.96), rgba(239,68,68,0.62))',
+    border: '1px solid rgba(239,68,68,0.52)',
+    color: '#fff5f5',
+    boxShadow: '0 14px 30px rgba(239,68,68,0.2)'
+  }
+
+  const btnWarning = {
+    ...baseButton,
+    background: 'linear-gradient(145deg, rgba(245,158,11,0.94), rgba(245,158,11,0.62))',
+    border: '1px solid rgba(245,158,11,0.5)',
+    color: '#111111',
+    boxShadow: '0 14px 30px rgba(245,158,11,0.2)'
+  }
+
+  const btnOutline = {
+    ...baseButton,
+    background: 'rgba(255,255,255,0.02)',
+    color: 'rgba(255,255,255,0.9)',
+    border: '1px solid rgba(255,255,255,0.18)'
+  }
+
+  const infoGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '14px', fontSize: '0.95rem' }
+  const infoItem = { padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }
+  const infoLabel = {
+    color: 'rgba(255,255,255,0.56)',
+    textTransform: 'none',
+    fontSize: '0.66rem',
+    letterSpacing: '0.09em',
+    display: 'block',
+    marginBottom: '8px',
+    fontWeight: '600'
+  }
 
   const brutalInput = {
-    padding: '16px 20px',
-    backgroundColor: '#111',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '12px',
-    color: '#fff',
-    fontFamily: "'Inter', sans-serif",
-    fontSize: '15px',
+    padding: '14px 16px',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.14)',
+    borderRadius: '14px',
+    color: '#ffffff',
+    fontFamily: FONT_STACK,
+    fontSize: '0.95rem',
     width: '100%',
     boxSizing: 'border-box',
-    transition: 'border-color 0.3s ease, background-color 0.3s ease',
+    transition: 'border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.25s ease',
     outline: 'none'
   }
 
   const sectionPill = {
-    padding: '8px 16px',
+    padding: '8px 14px',
     borderRadius: '999px',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#fff',
-    fontSize: '12px',
-    fontWeight: '700',
-    letterSpacing: '0.05em'
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.15)',
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: '0.68rem',
+    fontWeight: '600',
+    letterSpacing: '0.08em',
+    textTransform: 'none'
   }
 
-  const hoverEffect = (e) => { e.currentTarget.style.transform = 'scale(1.02)' }
-  const leaveEffect = (e) => { e.currentTarget.style.transform = 'scale(1)' }
+  const queueCardGrid = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
+    gap: '14px',
+    alignItems: 'start'
+  }
+
+  const queueCardItem = {
+    width: '100%',
+    minWidth: 0,
+    alignSelf: 'start'
+  }
+
+  const workflowSectionGrid = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
+    gap: '14px',
+    alignItems: 'stretch'
+  }
+
+  const workflowSectionItem = {
+    display: 'block',
+    width: '100%',
+    position: 'relative',
+    minWidth: 0
+  }
+
+  const hoverEffect = (e) => {
+    e.currentTarget.style.transform = 'translateY(-1px) scale(1.01)'
+    e.currentTarget.style.boxShadow = '0 16px 30px rgba(0,0,0,0.28)'
+  }
+
+  const leaveEffect = (e) => {
+    e.currentTarget.style.transform = 'translateY(0) scale(1)'
+    e.currentTarget.style.boxShadow = 'none'
+  }
+
+  useEffect(() => {
+    if (!dashboardRef.current || selectedClaim || !queueViewRef.current) return undefined
+
+    const ctx = gsap.context(() => {
+      const nodes = queueViewRef.current.querySelectorAll('.od-queue-head, .od-queue-panel, .od-queue-stat, .od-queue-row')
+      if (!nodes.length) return
+
+      gsap.fromTo(
+        nodes,
+        { autoAlpha: 0, y: 18, scale: 0.985 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.66, ease: 'power3.out', stagger: 0.05 }
+      )
+    }, dashboardRef)
+
+    return () => ctx.revert()
+  }, [selectedClaim, loadingClaims, queueSearch, queueStatusFilter, claims.length])
+
+  useEffect(() => {
+    if (!dashboardRef.current || !selectedClaim || !sectionStageRef.current) return undefined
+
+    const ctx = gsap.context(() => {
+      const cards = sectionStageRef.current.querySelectorAll('.od-section-card, .od-anim-item, .od-page-nav')
+      if (!cards.length) return
+
+      gsap.fromTo(
+        cards,
+        { autoAlpha: 0, y: 24, rotateX: -4 },
+        { autoAlpha: 1, y: 0, rotateX: 0, duration: 0.72, ease: 'power3.out', stagger: 0.07 }
+      )
+    }, dashboardRef)
+
+    return () => ctx.revert()
+  }, [selectedClaim?.id, workflowPage, claimHistory.length, surveyReports.length, daExtractedDocuments.length])
 
   // -----------------------------------------------
   // Render: Statistics
@@ -1003,46 +1337,36 @@ function OfficerDashboard({ onSwitchRole }) {
   const renderStatistics = () => {
     const today = new Date().toDateString()
     const todayClaims = claims.filter(c => new Date(c.created_at).toDateString() === today)
-    const underReview = claims.filter(c => c.status === 'UNDER_REVIEW').length
-    const surveyPending = claims.filter(c => c.status === 'SURVEY_ASSIGNED').length
-    const escalated = claims.filter(c => c.status === 'ESCALATED' || c.status === 'UNDER_INVESTIGATION').length
+    const underReview = claims.filter((c) => c.status === 'UNDER_REVIEW').length
+    const surveyPending = claims.filter((c) => c.status === 'SURVEY_ASSIGNED').length
+    const escalated = claims.filter((c) => c.status === 'ESCALATED' || c.status === 'UNDER_INVESTIGATION').length
 
-    const cardStyle = (color) => ({
-      background: 'transparent',
-      borderRadius: '24px', 
-      padding: '32px 24px',
-      border: '1px solid rgba(255,255,255,0.1)', 
-      borderTop: `4px solid ${color}`,
-      flex: '1', 
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-      position: 'relative',
-      overflow: 'hidden',
-    })
+    const stats = [
+      { key: 'today', label: 'Claims Today', value: todayClaims.length, color: 'rgba(255,255,255,0.95)' },
+      { key: 'submitted', label: 'Submitted', value: claims.filter((c) => c.status === 'SUBMITTED').length, color: '#d1d5db' },
+      { key: 'review', label: 'Under Review', value: underReview, color: '#93c5fd' },
+      { key: 'survey', label: 'Survey Pending', value: surveyPending, color: '#6ee7b7' },
+      { key: 'escalated', label: 'Escalated', value: escalated, color: '#fdba74' }
+    ]
 
     return (
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '60px', flexWrap: 'wrap' }}>
-        <div style={cardStyle('#ffffff')}>
-          <div style={{ fontSize: '4rem', fontWeight: 'bold', color: '#fff', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 1 }}>{todayClaims.length}</div>
-          <div style={{ fontSize: '13px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '12px' }}>Claims Today</div>
-        </div>
-        <div style={cardStyle('#666666')}>
-          <div style={{ fontSize: '4rem', fontWeight: 'bold', color: '#a3a3a3', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 1 }}>{claims.filter(c => c.status === 'SUBMITTED').length}</div>
-          <div style={{ fontSize: '13px', color: '#666666', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '12px' }}>Submitted</div>
-        </div>
-        <div style={cardStyle('#3b82f6')}>
-          <div style={{ fontSize: '4rem', fontWeight: 'bold', color: '#3b82f6', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 1 }}>{underReview}</div>
-          <div style={{ fontSize: '13px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '12px' }}>Under Review</div>
-        </div>
-        <div style={cardStyle('#10b981')}>
-          <div style={{ fontSize: '4rem', fontWeight: 'bold', color: '#10b981', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 1 }}>{surveyPending}</div>
-          <div style={{ fontSize: '13px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '12px' }}>Survey Pending</div>
-        </div>
-        <div style={cardStyle('#f59e0b')}>
-          <div style={{ fontSize: '4rem', fontWeight: 'bold', color: '#f59e0b', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 1 }}>{escalated}</div>
-          <div style={{ fontSize: '13px', color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '12px' }}>Escalated</div>
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '32px' }}>
+        {stats.map((stat) => (
+          <div
+            key={stat.key}
+            className="od-queue-stat"
+            style={{
+              borderRadius: '20px',
+              padding: '22px 20px',
+              border: '1px solid rgba(255,255,255,0.11)',
+              background: 'linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))',
+              boxShadow: '0 18px 34px rgba(0,0,0,0.28)'
+            }}
+          >
+            <div style={{ fontSize: '2.2rem', lineHeight: 1, color: stat.color, fontWeight: 520, letterSpacing: '-0.04em' }}>{stat.value}</div>
+            <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.62)', letterSpacing: '0.08em', textTransform: 'none', fontWeight: 560 }}>{stat.label}</div>
+          </div>
+        ))}
       </div>
     )
   }
@@ -1050,141 +1374,160 @@ function OfficerDashboard({ onSwitchRole }) {
   // -----------------------------------------------
   // Render: Claims Queue Table
   // -----------------------------------------------
-  const renderClaimsQueue = () => (
-    <div style={{ animation: 'fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px' }}>
-        <div style={{ maxWidth: '600px' }}>
-          <h2 style={{ margin: 0, fontSize: '5vw', color: '#ffffff', fontFamily: "'Bebas Neue', 'Oswald', sans-serif", lineHeight: 0.9, letterSpacing: '-0.04em', textTransform: 'uppercase' }}>CLAIMS_QUEUE</h2>
-          <p style={{ margin: '16px 0 0', color: '#a3a3a3', fontSize: '18px', letterSpacing: '-0.01em' }}>Monitor and orchestrate global operations.</p>
+  const renderQueueClaimCard = (claim, isProcessed = false) => {
+    const latestSurvey = claim.latest_survey_report
+
+    return (
+      <article
+        key={`${isProcessed ? 'processed' : 'active'}-${claim.id}`}
+        className="od-queue-row"
+        style={{
+          ...queueCardItem,
+          borderRadius: '18px',
+          border: '1px solid rgba(255,255,255,0.09)',
+          background: 'linear-gradient(162deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
+          padding: '18px',
+          boxShadow: '0 16px 34px rgba(0,0,0,0.24)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '14px' }}>
+          <div>
+            <div style={{ ...infoLabel, marginBottom: '6px' }}>Claim #{claim.id}</div>
+            <div style={{ color: '#fff', fontWeight: 620, fontSize: '1.02rem', letterSpacing: '-0.01em' }}>{claim.claim_number}</div>
+          </div>
+          <span
+            style={{
+              padding: '6px 10px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(255,255,255,0.02)',
+              color: getStatusColor(claim.status),
+              fontSize: '0.68rem',
+              fontWeight: '700',
+              letterSpacing: '0.05em',
+              border: '1px solid rgba(255,255,255,0.14)',
+              textTransform: 'none'
+            }}
+          >
+            {getStatusLabel(claim.status)}
+          </span>
         </div>
-        <button onClick={fetchClaims} disabled={loadingClaims}
-          style={{ ...btnPrimary, backgroundColor: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', opacity: loadingClaims ? 0.6 : 1, cursor: loadingClaims ? 'not-allowed' : 'pointer' }}>
-          {loadingClaims ? 'SYNCING...' : 'REFRESH QUEUE'}
+
+        <div style={{ display: 'grid', gap: '10px', marginBottom: '14px' }}>
+          <div style={{ ...infoItem, padding: '0 0 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={infoLabel}>Policy ID</span>
+            <strong style={{ color: '#f3f6ff' }}>{claim.policy_id || 'N/A'}</strong>
+          </div>
+          <div style={{ ...infoItem, padding: '0 0 8px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <span style={infoLabel}>Incident Date</span>
+            <strong style={{ color: '#f3f6ff' }}>{claim.incident_date ? formatDate(claim.incident_date) : 'N/A'}</strong>
+          </div>
+          <div style={{ ...infoItem, padding: '0 0 8px', borderBottom: 'none' }}>
+            <span style={infoLabel}>Survey</span>
+            {latestSurvey ? (
+              <div>
+                <strong style={{ color: '#f3f6ff' }}>{latestSurvey.surveyor_name || latestSurvey.surveyor_id || 'Assigned'}</strong>
+                <div style={{ marginTop: '4px', color: 'rgba(255,255,255,0.56)', fontSize: '0.78rem' }}>
+                  {latestSurvey.submitted_at ? `Submitted ${formatDateTime(latestSurvey.submitted_at)}` : 'Awaiting report'}
+                </div>
+                {latestSurvey.recommendation && (
+                  <div style={{ marginTop: '5px', color: 'rgba(255,255,255,0.72)', fontSize: '0.78rem' }}>
+                    Recommendation: {toReadableLabel(latestSurvey.recommendation)}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span style={{ color: 'rgba(255,255,255,0.46)', fontSize: '0.82rem' }}>Not assigned</span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={() => handleOpenClaim(claim)}
+            onMouseEnter={hoverEffect}
+            onMouseLeave={leaveEffect}
+            style={{ ...(isProcessed ? btnOutline : btnPrimary), padding: '8px 14px', fontSize: '0.66rem' }}
+          >
+            {isProcessed ? 'View' : 'Open'}
+          </button>
+        </div>
+      </article>
+    )
+  }
+
+  const renderClaimsQueue = () => (
+    <div ref={queueViewRef} className="od-queue-view" style={{ animation: 'fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      <div className="od-queue-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '28px', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: '680px' }}>
+          <h2 style={{ margin: 0, fontSize: 'clamp(2.2rem, 5vw, 4.4rem)', color: '#ffffff', lineHeight: 0.94, letterSpacing: '-0.03em', fontWeight: 520 }}>
+            Claims Queue Dashboard
+          </h2>
+          <p style={{ margin: '14px 0 0', color: 'rgba(255,255,255,0.6)', fontSize: '1.02rem', lineHeight: 1.55 }}>
+            Review incoming claims and move each case through policy validation, document checks, and final settlement.
+          </p>
+        </div>
+        <button onClick={fetchClaims} disabled={loadingClaims} onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
+          style={{ ...btnOutline, opacity: loadingClaims ? 0.55 : 1, cursor: loadingClaims ? 'not-allowed' : 'pointer' }}>
+          {loadingClaims ? 'Syncing' : 'Refresh Queue'}
         </button>
       </div>
 
       {error && (
-        <div style={{ color: '#ef4444', padding: '16px', marginBottom: '24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
-          <strong>ERROR:</strong> {error}
+        <div className="od-queue-panel" style={{ color: '#fca5a5', padding: '16px', marginBottom: '20px', backgroundColor: 'rgba(239, 68, 68, 0.09)', borderRadius: '14px', border: '1px solid rgba(239,68,68,0.24)' }}>
+          <strong>Error:</strong> {error}
         </div>
       )}
 
       {renderStatistics()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr', gap: '16px', marginBottom: '40px' }}>
+      <div className="od-queue-panel" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
         <input
           type="text"
           value={queueSearch}
           onChange={e => setQueueSearch(e.target.value)}
-          placeholder="SEARCH BY CLAIM NUMBER, POLICY ID..."
-          style={{ padding: '20px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '14px', backgroundColor: '#111', color: '#fff', letterSpacing: '0.05em' }}
+          placeholder="Search by claim number, policy id, surveyor..."
+          style={brutalInput}
         />
         <select
           value={queueStatusFilter}
           onChange={e => setQueueStatusFilter(e.target.value)}
-          style={{ padding: '20px 24px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '14px', backgroundColor: '#111', color: '#fff', letterSpacing: '0.05em', cursor: 'pointer' }}
+          style={{ ...brutalInput, cursor: 'pointer' }}
         >
-          <option value="ALL">ALL STATUSES</option>
+          <option value="ALL">All Statuses</option>
           {['SUBMITTED', 'UNDER_REVIEW', 'DOCUMENT_REQUIRED', 'SURVEY_ASSIGNED', 'SURVEY_COMPLETED', 'UNDER_INVESTIGATION', 'APPROVED', 'REJECTED', 'PAID', 'CLOSED'].map(option => (
-            <option key={option} value={option}>{option}</option>
+            <option key={option} value={option}>{getStatusLabel(option)}</option>
           ))}
         </select>
       </div>
 
       {/* Active Claims */}
-      <div style={{ marginBottom: '60px' }}>
-        <h3 style={{ color: '#fff', marginBottom: '24px', fontFamily: "'Bebas Neue', Oswald, sans-serif", fontSize: '2.5rem', letterSpacing: '-0.02em' }}>ACTIVE_ ({activeClaims.length})</h3>
+      <div style={{ marginBottom: '44px' }}>
+        <h3 style={{ color: '#fff', marginBottom: '16px', fontSize: '1.5rem', letterSpacing: '-0.02em', fontWeight: 520 }}>
+          Active Claims ({activeClaims.length})
+        </h3>
         {activeClaims.length === 0 ? (
-          <div style={{ padding: '60px', textAlign: 'center', backgroundColor: '#111', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <p style={{ color: '#666', margin: 0, textTransform: 'uppercase', letterSpacing: '0.1em' }}>NO ACTIVE CLAIMS DETECTED.</p>
+          <div className="od-queue-panel" style={{ padding: '42px', textAlign: 'center', background: 'rgba(255,255,255,0.015)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, letterSpacing: '0.04em' }}>No active claims found.</p>
           </div>
         ) : (
-          <div style={{ backgroundColor: '#111', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#0d0d0d' }}>
-                  {['Claim ID', 'Claim Number', 'Policy ID', 'Survey', 'Incident Date', 'Status', 'Action'].map(h => (
-                    <th key={h} style={{ padding: '20px', textAlign: h === 'Action' ? 'center' : 'left', fontWeight: '800', color: '#666', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.1em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {activeClaims.map((claim) => (
-                  <tr key={claim.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.2s ease', cursor: 'grab' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                    <td style={{ padding: '20px', color: '#a3a3a3' }}>#{claim.id}</td>
-                    <td style={{ padding: '20px', fontWeight: '700', color: '#fff' }}>{claim.claim_number}</td>
-                    <td style={{ padding: '20px', color: '#a3a3a3' }}>{claim.policy_id}</td>
-                    <td style={{ padding: '20px' }}>
-                      {claim.latest_survey_report ? (
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#fff' }}>{claim.latest_survey_report.surveyor_name || claim.latest_survey_report.surveyor_id}</div>
-                          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', textTransform: 'uppercase' }}>{claim.latest_survey_report.submitted_at ? 'Report submitted' : 'Awaiting report'}</div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#444', fontSize: '13px', textTransform: 'uppercase' }}>Not assigned</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '20px', color: '#a3a3a3' }}>{claim.incident_date ? formatDate(claim.incident_date) : 'N/A'}</td>
-                    <td style={{ padding: '20px' }}>
-                      <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: getStatusColor(claim.status), color: '#000', fontSize: '11px', fontWeight: '800', letterSpacing: '0.05em', border: '1px solid rgba(255,255,255,0.2)' }}>
-                        {claim.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '20px', textAlign: 'center' }}>
-                      <button onClick={() => handleOpenClaim(claim)} style={{ ...btnOutline, padding: '8px 20px', fontSize: '11px', backgroundColor: '#fff', color: '#000' }}>
-                        INSPECT
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="od-queue-panel" style={{ background: 'rgba(255,255,255,0.014)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', padding: '16px' }}>
+            <div style={queueCardGrid}>
+              {activeClaims.map((claim) => renderQueueClaimCard(claim, false))}
+            </div>
           </div>
         )}
       </div>
 
       {/* Processed Claims */}
       {processedClaims.length > 0 && (
-        <div style={{ marginBottom: '60px' }}>
-          <h3 style={{ color: '#666', marginBottom: '24px', fontFamily: "'Bebas Neue', Oswald, sans-serif", fontSize: '2.5rem', letterSpacing: '-0.02em' }}>PROCESSED_ ({processedClaims.length})</h3>
-          <div style={{ backgroundColor: '#111', borderRadius: '24px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', opacity: 0.7 }}>
-              <thead>
-                <tr style={{ backgroundColor: '#0d0d0d' }}>
-                  {['Claim ID', 'Claim Number', 'Policy ID', 'Survey', 'Incident Date', 'Status', 'Action'].map(h => (
-                    <th key={h} style={{ padding: '20px', textAlign: h === 'Action' ? 'center' : 'left', fontWeight: '800', color: '#666', textTransform: 'uppercase', fontSize: '12px', letterSpacing: '0.1em', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {processedClaims.map((claim) => (
-                  <tr key={claim.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'transparent' }}>
-                    <td style={{ padding: '20px', color: '#a3a3a3' }}>#{claim.id}</td>
-                    <td style={{ padding: '20px', fontWeight: '700', color: '#fff' }}>{claim.claim_number}</td>
-                    <td style={{ padding: '20px', color: '#666' }}>{claim.policy_id}</td>
-                    <td style={{ padding: '20px' }}>
-                      {claim.latest_survey_report ? (
-                        <div>
-                          <div style={{ fontWeight: '600', color: '#fff' }}>{claim.latest_survey_report.surveyor_name || claim.latest_survey_report.surveyor_id}</div>
-                          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px', textTransform: 'uppercase' }}>{claim.latest_survey_report.recommendation || 'No recommendation'}</div>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#444', fontSize: '13px', textTransform: 'uppercase' }}>No survey used</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '20px', color: '#666' }}>{claim.incident_date ? formatDate(claim.incident_date) : 'N/A'}</td>
-                    <td style={{ padding: '20px' }}>
-                      <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '11px', fontWeight: '800', letterSpacing: '0.05em', border: '1px solid rgba(255,255,255,0.1)' }}>
-                        {claim.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '20px', textAlign: 'center' }}>
-                      <button onClick={() => handleOpenClaim(claim)} style={{ padding: '8px 20px', cursor: 'pointer', backgroundColor: 'transparent', color: '#666', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '999px', fontSize: '11px', textTransform: 'uppercase', fontWeight: 800 }}>VIEW ARCHIVE</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div style={{ marginBottom: '44px' }}>
+          <h3 style={{ color: 'rgba(255,255,255,0.82)', marginBottom: '16px', fontSize: '1.34rem', letterSpacing: '-0.02em', fontWeight: 520 }}>
+            Processed Claims ({processedClaims.length})
+          </h3>
+          <div className="od-queue-panel" style={{ background: 'rgba(255,255,255,0.012)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', padding: '16px' }}>
+            <div style={queueCardGrid}>
+              {processedClaims.map((claim) => renderQueueClaimCard(claim, true))}
+            </div>
           </div>
         </div>
       )}
@@ -1197,52 +1540,83 @@ function OfficerDashboard({ onSwitchRole }) {
   const renderTimeline = () => {
     if (claimHistory.length === 0) return null
     return (
-      <div style={{ marginTop: '40px', padding: '40px 32px', backgroundColor: '#111', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <h4 style={{ marginBottom: '40px', color: '#fff', fontSize: '2.5rem', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>CLAIM_TIMELINE</h4>
-        <div style={{ position: 'relative', paddingLeft: '32px' }}>
-          <div style={{ position: 'absolute', left: '7px', top: '10px', bottom: '10px', width: '1px', backgroundColor: 'rgba(255,255,255,0.1)' }} />
-          {claimHistory.map((history, index) => (
-            <div key={index} style={{ position: 'relative', marginBottom: '32px', opacity: index === claimHistory.length - 1 ? 1 : 0.6 }}>
-              <div style={{ position: 'absolute', left: '-29px', top: '4px', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: index === claimHistory.length - 1 ? '#10b981' : '#fff', border: '2px solid #111', boxShadow: '0 0 0 2px rgba(255,255,255,0.2)' }} />
-              <div style={{ fontSize: '15px', color: '#fff', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{history.new_status}</div>
-              <div style={{ fontSize: '12px', color: '#a3a3a3', marginTop: '6px', letterSpacing: '0.05em' }}>{formatDateTime(history.changed_at)}</div>
-            </div>
-          ))}
+      <SectionCard number="T" title="Claim Timeline">
+        <div style={{ overflowX: 'auto', overflowY: 'hidden', paddingBottom: '6px' }}>
+          <div style={{ display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(250px, 1fr)', gap: '14px' }}>
+            {claimHistory.map((history, index) => (
+              <div key={index} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px 16px', minHeight: '96px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: index === claimHistory.length - 1 ? 1 : 0.78 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: index === claimHistory.length - 1 ? '#10b981' : '#e5e7eb', boxShadow: '0 0 0 2px rgba(255,255,255,0.14)' }} />
+                  <div style={{ fontSize: '0.96rem', color: '#fff', fontWeight: '600', letterSpacing: '-0.01em' }}>{getStatusLabel(history.new_status)}</div>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'rgba(255,255,255,0.58)', marginTop: '10px', letterSpacing: '0.05em', textTransform: 'none' }}>{formatDateTime(history.changed_at)}</div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </SectionCard>
     )
   }
 
   // -----------------------------------------------
   // SECTION 1 — Claim Summary
   // -----------------------------------------------
-  const renderSection1 = () => (
-    <SectionCard number="1" title="CLAIM_SUMMARY">
-      <div style={infoGrid}>
-        <div style={infoItem}><span style={infoLabel}>Claim ID: </span><strong style={{ color: '#fff' }}>#{selectedClaim.id}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Claim Number: </span><strong style={{ color: '#fff' }}>{selectedClaim.claim_number}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Customer Name: </span><strong style={{ color: '#fff' }}>{policy?.policy_holder_name || 'Loading...'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Policy Number: </span><strong style={{ color: '#fff' }}>{policy?.policy_number || 'Loading...'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Vehicle Number: </span><strong style={{ color: '#fff' }}>{policy?.vehicle_number || 'Loading...'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Vehicle Model: </span><strong style={{ color: '#fff' }}>{policy?.vehicle_model || 'N/A'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Claim Type: </span><strong style={{ color: '#fff' }}>{selectedClaim.claim_type || 'Not specified'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Incident Date: </span><strong style={{ color: '#fff' }}>{formatDateTime(selectedClaim.incident_date)}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Current Status: </span>
-          <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: getStatusColor(selectedClaim.status), color: '#000', fontSize: '11px', fontWeight: '800', letterSpacing: '0.05em' }}>
-            {selectedClaim.status}
-          </span>
+  const renderSection1 = () => {
+    const incidentMeta = [
+      { label: 'Incident Date', value: selectedClaim.incident_date ? formatDate(selectedClaim.incident_date) : 'Not available' },
+      { label: 'Incident Time', value: selectedClaim.incident_date ? new Date(selectedClaim.incident_date).toLocaleTimeString() : 'Not available' },
+      { label: 'Incident Type', value: selectedClaim.incident_type || selectedClaim.claim_type || 'Not specified' },
+      { label: 'Location', value: selectedClaim.incident_location || selectedClaim.location || 'Not provided' },
+      { label: 'Reported On', value: selectedClaim.created_at ? formatDateTime(selectedClaim.created_at) : 'Not available' }
+    ]
+
+    const incidentNarrativeLines = splitNarrativeLines(selectedClaim.description)
+
+    return (
+      <SectionCard number="1" title="Claim Summary">
+        <div style={infoGrid}>
+          <div style={infoItem}><span style={infoLabel}>Claim ID: </span><strong style={{ color: '#fff' }}>#{selectedClaim.id}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Claim Number: </span><strong style={{ color: '#fff' }}>{selectedClaim.claim_number}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Customer Name: </span><strong style={{ color: '#fff' }}>{policy?.policy_holder_name || 'Loading...'}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Policy Number: </span><strong style={{ color: '#fff' }}>{policy?.policy_number || 'Loading...'}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Vehicle Number: </span><strong style={{ color: '#fff' }}>{policy?.vehicle_number || 'Loading...'}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Vehicle Model: </span><strong style={{ color: '#fff' }}>{policy?.vehicle_model || 'N/A'}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Current Status: </span>
+            <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: getStatusColor(selectedClaim.status), color: '#000', fontSize: '11px', fontWeight: '800', letterSpacing: '0.05em' }}>
+              {getStatusLabel(selectedClaim.status)}
+            </span>
+          </div>
+          <div style={infoItem}><span style={infoLabel}>IDV Amount: </span><strong style={{ color: '#fff' }}>{policy?.idv_amount ? formatCurrency(policy.idv_amount) : 'N/A'}</strong></div>
+          <div style={infoItem}><span style={infoLabel}>Survey Reports: </span><strong style={{ color: '#fff' }}>{surveyReports.length}</strong></div>
         </div>
-        <div style={infoItem}><span style={infoLabel}>IDV Amount: </span><strong style={{ color: '#fff' }}>{policy?.idv_amount ? formatCurrency(policy.idv_amount) : 'N/A'}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Survey Reports: </span><strong style={{ color: '#fff' }}>{surveyReports.length}</strong></div>
-      </div>
-      <div style={{ marginTop: '24px' }}>
-        <span style={infoLabel}>Incident Description: </span>
-        <p style={{ margin: '8px 0 0', fontSize: '15px', color: '#e0e0e0', backgroundColor: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          {selectedClaim.description || 'No description provided'}
-        </p>
-      </div>
-    </SectionCard>
-  )
+
+        <div style={{ marginTop: '20px' }}>
+          <span style={infoLabel}>Incident Details</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            {incidentMeta.map((item) => (
+              <div key={item.label} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px 14px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.56)', fontSize: '0.66rem', letterSpacing: '0.09em', marginBottom: '6px', fontWeight: '600' }}>{item.label}</div>
+                <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem', lineHeight: 1.4 }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: '20px' }}>
+          <span style={infoLabel}>Incident Description</span>
+          <div style={{ marginTop: '8px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {incidentNarrativeLines.map((line, idx) => (
+                <div key={`summary-incident-line-${idx}`} style={{ fontSize: '14px', color: '#e0e0e0', backgroundColor: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 12px', lineHeight: 1.6 }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+    )
+  }
 
   // -----------------------------------------------
   // SECTION 2 — Policy Validation
@@ -1256,18 +1630,18 @@ function OfficerDashboard({ onSwitchRole }) {
     ]
 
     return (
-      <SectionCard number="2" title="POLICY_VALIDATION">
+      <SectionCard number="2" title="Policy Validation">
         <div style={{ marginBottom: '24px' }}>
           {checks.map((c, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <span style={{ color: c.pass ? '#10b981' : '#ef4444', fontSize: '20px', fontWeight: 'bold' }}>{c.pass ? '✔' : '✘'}</span>
-              <span style={{ color: c.pass ? '#fff' : '#ef4444', fontWeight: '600', fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase' }}>{c.label}</span>
+              <span style={{ color: c.pass ? '#fff' : '#ef4444', fontWeight: '600', fontSize: '15px', letterSpacing: '0.02em', textTransform: 'none' }}>{c.label}</span>
             </div>
           ))}
         </div>
         {policy && (
-          <div style={{ fontSize: '13px', color: '#a3a3a3', marginBottom: '24px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            PERIOD: <span style={{ color: '#fff' }}>{formatDate(policy.policy_start_date)} — {formatDate(policy.policy_end_date)}</span>
+          <div style={{ fontSize: '13px', color: '#a3a3a3', marginBottom: '24px', letterSpacing: '0.05em', textTransform: 'none' }}>
+            Policy period: <span style={{ color: '#fff' }}>{formatDate(policy.policy_start_date)} — {formatDate(policy.policy_end_date)}</span>
           </div>
         )}
         {status === 'SUBMITTED' && (
@@ -1275,18 +1649,18 @@ function OfficerDashboard({ onSwitchRole }) {
             <button onClick={handleValidatePolicy} disabled={loading || !allPolicyChecksPass}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnSuccess, opacity: (loading || !allPolicyChecksPass) ? 0.6 : 1, cursor: (loading || !allPolicyChecksPass) ? 'not-allowed' : 'pointer' }}>
-              {loading ? 'VALIDATING...' : 'VALIDATE POLICY'}
+              {loading ? 'Validating...' : 'Validate policy'}
             </button>
             <button onClick={handleQuickReject} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnDanger, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              REJECT CLAIM
+              Reject claim
             </button>
           </div>
         )}
         {status !== 'SUBMITTED' && (
-          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            ✔ POLICY VALIDATION COMPLETED
+          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'none', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            ✔ Policy validation completed
           </div>
         )}
       </SectionCard>
@@ -1298,35 +1672,35 @@ function OfficerDashboard({ onSwitchRole }) {
   // -----------------------------------------------
   const renderSection3 = () => {
     const documents = [
-      { key: 'aadhar', label: 'AADHAAR NUMBER', value: policy?.aadhar_number },
-      { key: 'pan', label: 'PAN NUMBER', value: policy?.pan_number },
-      { key: 'dl', label: 'DRIVING LICENSE', value: policy?.driving_license_number },
+      { key: 'aadhar', label: 'Aadhaar Number', value: policy?.aadhar_number },
+      { key: 'pan', label: 'PAN Number', value: policy?.pan_number },
+      { key: 'dl', label: 'Driving License', value: policy?.driving_license_number },
     ]
 
     return (
-      <SectionCard number="3" title="IDENTITY_VERIFICATION">
+      <SectionCard number="3" title="Identity Verification">
         <div style={{ display: 'grid', gap: '16px' }}>
           {documents.map(doc => (
             <div key={doc.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div>
                 <div style={{ fontSize: '11px', color: '#a3a3a3', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '4px' }}>{doc.label}</div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '0.05em' }}>{doc.value || 'NOT AVAILABLE'}</div>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '0.05em' }}>{doc.value || 'Not available'}</div>
               </div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {identityStatus[doc.key] === 'verified' && <span style={{ color: '#10b981', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✔ VERIFIED</span>}
-                {identityStatus[doc.key] === 'reupload' && <span style={{ color: '#f59e0b', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>⟳ REUPLOAD REQUESTED</span>}
-                {identityStatus[doc.key] === 'rejected' && <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✘ REJECTED</span>}
+                {identityStatus[doc.key] === 'verified' && <span style={{ color: '#10b981', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✔ Verified</span>}
+                {identityStatus[doc.key] === 'reupload' && <span style={{ color: '#f59e0b', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>⟳ Reupload requested</span>}
+                {identityStatus[doc.key] === 'rejected' && <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✘ Rejected</span>}
                 {canReview && (
                   <>
                     <button onClick={() => setIdentityStatus(prev => ({ ...prev, [doc.key]: 'verified' }))}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>VERIFY</button>
+                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>Verify</button>
                     <button onClick={() => setIdentityStatus(prev => ({ ...prev, [doc.key]: 'reupload' }))}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>REUPLOAD</button>
+                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>Reupload</button>
                     <button onClick={() => setIdentityStatus(prev => ({ ...prev, [doc.key]: 'rejected' }))}
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>REJECT</button>
+                      style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>Reject</button>
                   </>
                 )}
               </div>
@@ -1342,32 +1716,32 @@ function OfficerDashboard({ onSwitchRole }) {
   // -----------------------------------------------
   const renderSection4 = () => {
     const vehicleDocs = [
-      { key: 'rc', label: 'RC NUMBER', value: policy?.rc_number, check: 'Vehicle number matches RC' },
-      { key: 'policy_doc', label: 'POLICY DOCUMENT', value: policy?.policy_number, check: 'Owner matches policy holder' },
+      { key: 'rc', label: 'RC Number', value: policy?.rc_number, check: 'Vehicle number matches RC' },
+      { key: 'policy_doc', label: 'Policy Document', value: policy?.policy_number, check: 'Owner matches policy holder' },
     ]
 
     return (
-      <SectionCard number="4" title="VEHICLE_DOCUMENTS">
+      <SectionCard number="4" title="Vehicle Documents">
         <div style={{ display: 'grid', gap: '16px' }}>
           {vehicleDocs.map(doc => (
             <div key={doc.key} style={{ padding: '20px 24px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: '11px', color: '#a3a3a3', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '4px' }}>{doc.label}</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '0.05em' }}>{doc.value || 'NOT AVAILABLE'}</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '0.05em' }}>{doc.value || 'Not available'}</div>
                   <div style={{ fontSize: '12px', color: '#10b981', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>✔ {doc.check}</div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                  {vehicleDocsStatus[doc.key] === 'verified' && <span style={{ color: '#10b981', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✔ VERIFIED</span>}
-                  {vehicleDocsStatus[doc.key] === 'reupload' && <span style={{ color: '#f59e0b', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>⟳ REUPLOAD REQUESTED</span>}
+                  {vehicleDocsStatus[doc.key] === 'verified' && <span style={{ color: '#10b981', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>✔ Verified</span>}
+                  {vehicleDocsStatus[doc.key] === 'reupload' && <span style={{ color: '#f59e0b', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>⟳ Reupload requested</span>}
                   {canReview && (
                     <>
                       <button onClick={() => setVehicleDocsStatus(prev => ({ ...prev, [doc.key]: 'verified' }))}
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.2)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                        style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>VERIFY RC</button>
+                        style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#10b981', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>Verify RC</button>
                       <button onClick={() => setVehicleDocsStatus(prev => ({ ...prev, [doc.key]: 'reupload' }))}
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.2)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
-                        style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>REQUEST REUPLOAD</button>
+                        style={{ padding: '8px 16px', fontSize: '11px', backgroundColor: 'transparent', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.4)', borderRadius: '999px', cursor: 'pointer', fontWeight: '800', letterSpacing: '0.05em', transition: 'all 0.2s' }}>Request reupload</button>
                     </>
                   )}
                 </div>
@@ -1382,41 +1756,66 @@ function OfficerDashboard({ onSwitchRole }) {
   // -----------------------------------------------
   // SECTION 5 — Incident Review
   // -----------------------------------------------
-  const renderSection5 = () => (
-    <SectionCard number="5" title="INCIDENT_REVIEW">
-      <div style={infoGrid}>
-        <div style={infoItem}><span style={infoLabel}>Incident Date: </span><strong style={{ color: '#fff' }}>{formatDateTime(selectedClaim.incident_date)}</strong></div>
-        <div style={infoItem}><span style={infoLabel}>Claim Type: </span><strong style={{ color: '#fff' }}>{selectedClaim.claim_type || 'Not specified'}</strong></div>
-      </div>
-      <div style={{ marginTop: '24px', marginBottom: '32px' }}>
-        <span style={infoLabel}>Incident Description:</span>
-        <p style={{ margin: '8px 0 0', padding: '20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', fontSize: '15px', color: '#e0e0e0' }}>
-          {selectedClaim.description || 'No description provided'}
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-        {incidentStatus === 'valid' && <span style={{ color: '#10b981', fontWeight: '800', letterSpacing: '0.05em' }}>✔ VALIDATED</span>}
-        {incidentStatus === 'suspicious' && <span style={{ color: '#ef4444', fontWeight: '800', letterSpacing: '0.05em' }}>⚠ FLAGGED SUSPICIOUS</span>}
-        {canReview && (
-          <>
-            <button onClick={() => setIncidentStatus('valid')}
-              onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
-              style={{ ...btnSuccess, padding: '12px 24px', fontSize: '12px' }}>MARK VALID</button>
-            <button onClick={() => setIncidentStatus('suspicious')}
-              onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
-              style={{ ...btnWarning, padding: '12px 24px', fontSize: '12px' }}>FLAG SUSPICIOUS</button>
-          </>
-        )}
-      </div>
-    </SectionCard>
-  )
+  const renderSection5 = () => {
+    const incidentMeta = [
+      { label: 'Incident Date', value: selectedClaim.incident_date ? formatDate(selectedClaim.incident_date) : 'Not available' },
+      { label: 'Incident Time', value: selectedClaim.incident_date ? new Date(selectedClaim.incident_date).toLocaleTimeString() : 'Not available' },
+      { label: 'Claim Type', value: selectedClaim.claim_type || 'Not specified' },
+      { label: 'Incident Type', value: selectedClaim.incident_type || selectedClaim.claim_type || 'Not specified' },
+      { label: 'Location', value: selectedClaim.incident_location || selectedClaim.location || 'Not provided' },
+      { label: 'Reported On', value: selectedClaim.created_at ? formatDateTime(selectedClaim.created_at) : 'Not available' }
+    ]
+
+    const incidentNarrativeLines = splitNarrativeLines(selectedClaim.description)
+
+    return (
+      <SectionCard number="5" title="Incident Review">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+          {incidentMeta.map((item) => (
+            <div key={item.label} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px 14px' }}>
+              <div style={{ color: 'rgba(255,255,255,0.56)', fontSize: '0.66rem', letterSpacing: '0.09em', marginBottom: '6px', fontWeight: '600' }}>{item.label}</div>
+              <div style={{ color: '#fff', fontWeight: '700', fontSize: '0.95rem', lineHeight: 1.4 }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginBottom: '28px' }}>
+          <span style={infoLabel}>Incident Description</span>
+          <div style={{ marginTop: '8px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ display: 'grid', gap: '8px' }}>
+              {incidentNarrativeLines.map((line, idx) => (
+                <div key={`incident-review-line-${idx}`} style={{ fontSize: '14px', color: '#e0e0e0', backgroundColor: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 12px', lineHeight: 1.6 }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {incidentStatus === 'valid' && <span style={{ color: '#10b981', fontWeight: '800', letterSpacing: '0.05em' }}>✔ Validated</span>}
+          {incidentStatus === 'suspicious' && <span style={{ color: '#ef4444', fontWeight: '800', letterSpacing: '0.05em' }}>⚠ Flagged suspicious</span>}
+          {canReview && (
+            <>
+              <button onClick={() => setIncidentStatus('valid')}
+                onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
+                style={{ ...btnSuccess, padding: '12px 24px', fontSize: '12px' }}>Mark valid</button>
+              <button onClick={() => setIncidentStatus('suspicious')}
+                onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
+                style={{ ...btnWarning, padding: '12px 24px', fontSize: '12px' }}>Flag suspicious</button>
+            </>
+          )}
+        </div>
+      </SectionCard>
+    )
+  }
 
   // -----------------------------------------------
   // SECTION 6 — Customer Document Review
   // -----------------------------------------------
   const handleViewDocument = (doc) => {
     const docType = String(doc?.document_type || doc?.type || 'DOCUMENT')
-    const label = String(doc?.label || docType).replace(/_/g, ' ')
+    const label = toReadableLabel(String(doc?.label || docType))
     const filePath = doc?.file_path
     if (!filePath) return
 
@@ -1432,19 +1831,18 @@ function OfficerDashboard({ onSwitchRole }) {
     const documents = Array.isArray(claimDocuments) ? claimDocuments : []
 
     return (
-      <SectionCard number="6" title="DOCUMENT_REVIEW">
+      <SectionCard number="6" title="Document Review">
         {documents.length === 0 ? (
-          <div style={{ color: '#666', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>NO DOCUMENTS UPLOADED.</div>
+          <div style={{ color: '#666', fontSize: '15px', letterSpacing: '0.05em', textTransform: 'none' }}>No documents uploaded.</div>
         ) : (
           <>
-            <div style={{ marginBottom: '24px', padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: '#a3a3a3', fontSize: '13px', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              {documents.length} DOCUMENT(S) AVAILABLE FOR REVIEW.
+            <div style={{ marginBottom: '24px', padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: '#a3a3a3', fontSize: '13px', fontWeight: '600', letterSpacing: '0.05em', textTransform: 'none' }}>
+              {documents.length} document(s) available for review.
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
               {documents.map(doc => {
                 const docType = String(doc?.document_type || 'DOCUMENT')
-                const label = docType.replace(/_/g, ' ')
-                const fieldCount = Array.isArray(doc?.fields) ? doc.fields.length : 0
+                const label = toReadableLabel(docType)
                 const canView = Boolean(doc?.file_path)
 
                 return (
@@ -1454,9 +1852,8 @@ function OfficerDashboard({ onSwitchRole }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                       <span style={{ fontSize: '28px', opacity: 0.8 }}>📄</span>
                       <div>
-                        <div style={{ fontWeight: '800', color: '#fff', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '14px' }}>{label}</div>
-                        {doc?.extracted_at && <div style={{ fontSize: '11px', color: '#666', marginTop: '6px', letterSpacing: '0.05em' }}>UPLOADED {formatDateTime(doc.extracted_at)}</div>}
-                        {fieldCount > 0 && <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', fontWeight: '600', letterSpacing: '0.05em' }}>{fieldCount} EXTRACTED FIELDS</div>}
+                        <div style={{ fontWeight: '800', color: '#fff', letterSpacing: '0.05em', textTransform: 'none', fontSize: '14px' }}>{label}</div>
+                        {doc?.extracted_at && <div style={{ fontSize: '11px', color: '#666', marginTop: '6px', letterSpacing: '0.05em' }}>Uploaded {formatDateTime(doc.extracted_at)}</div>}
                       </div>
                     </div>
                     <button
@@ -1472,23 +1869,10 @@ function OfficerDashboard({ onSwitchRole }) {
                         cursor: canView ? 'pointer' : 'not-allowed',
                       }}
                     >
-                      VIEW
+                      View
                       </button>
                     </div>
 
-                    {fieldCount > 0 && (
-                      <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ fontSize: '12px', color: '#fff', fontWeight: '600', letterSpacing: '0.05em', marginBottom: '12px' }}>AI EXTRACTION DATA:</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
-                          {doc.fields.map((f, idx) => (
-                            <div key={idx} style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px' }}>
-                              <div style={{ fontSize: '10px', color: '#10b981', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '4px', fontWeight: '700' }}>{f.field_name.replace(/_/g, ' ')}</div>
-                              <div style={{ fontSize: '13px', color: '#e0e0e0', fontWeight: '500', wordBreak: 'break-word' }}>{f.field_value}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                   </React.Fragment>
                 )
@@ -1504,8 +1888,8 @@ function OfficerDashboard({ onSwitchRole }) {
             <div style={{ backgroundColor: '#0d0d0d', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '24px', padding: '32px', width: '96vw', height: '94vh', display: 'flex', flexDirection: 'column' }}
               onClick={e => e.stopPropagation()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ margin: 0, color: '#fff', fontFamily: "'Bebas Neue', Oswald, sans-serif", fontSize: '2rem', letterSpacing: '0.05em' }}>{previewDoc.label}</h3>
-                <button onClick={() => setPreviewDoc(null)} onMouseEnter={hoverEffect} onMouseLeave={leaveEffect} style={{ ...btnOutline, borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>CLOSE PREVIEW</button>
+                <h3 style={{ margin: 0, color: '#fff', fontSize: '1.85rem', letterSpacing: '-0.02em', fontWeight: 520 }}>{previewDoc.label}</h3>
+                <button onClick={() => setPreviewDoc(null)} onMouseEnter={hoverEffect} onMouseLeave={leaveEffect} style={{ ...btnOutline, borderColor: 'rgba(255,255,255,0.2)', color: '#fff' }}>Close Preview</button>
               </div>
               <iframe
                 src={previewDoc.url}
@@ -1527,10 +1911,10 @@ function OfficerDashboard({ onSwitchRole }) {
     const totalExtractedFields = daExtractedDocuments.reduce((sum, doc) => sum + (Array.isArray(doc?.fields) ? doc.fields.length : 0), 0)
 
     return (
-      <SectionCard number="14" title="DA_EXTRACTION_RESULTS">
+      <SectionCard number="14" title="Document AI Extraction">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '20px' }}>
-          <div style={{ color: '#a3a3a3', fontSize: '12px', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: '600' }}>
-            BACKEND SOURCE: /CLAIMS/{selectedClaim.id}/DOCUMENTS
+          <div style={{ color: '#a3a3a3', fontSize: '12px', letterSpacing: '0.05em', textTransform: 'none', fontWeight: '600' }}>
+            Backend source: /claims/{selectedClaim.id}/documents
           </div>
           <button
             onClick={() => fetchDaDocumentsForClaim(selectedClaim.id)}
@@ -1545,38 +1929,38 @@ function OfficerDashboard({ onSwitchRole }) {
               cursor: daFetchLoading ? 'not-allowed' : 'pointer',
             }}
           >
-            {daFetchLoading ? 'FETCHING_DA_DATA...' : 'REFRESH_DA_DATA'}
+            {daFetchLoading ? 'Fetching Data...' : 'Refresh Data'}
           </button>
         </div>
 
         {daLastSyncAt && (
-          <div style={{ marginBottom: '14px', color: '#666', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            LAST DA SYNC: {formatDateTime(daLastSyncAt)}
+          <div style={{ marginBottom: '14px', color: '#666', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'none' }}>
+            Last Sync: {formatDateTime(daLastSyncAt)}
           </div>
         )}
 
         {daFetchLoading && (
-          <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', backgroundColor: 'rgba(56, 189, 248, 0.08)', color: '#38bdf8', fontSize: '13px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            FETCHING EXTRACTED DATA FROM DOCUMENT AUTOMATION...
+          <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(56,189,248,0.2)', backgroundColor: 'rgba(56, 189, 248, 0.08)', color: '#38bdf8', fontSize: '13px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'none' }}>
+            Fetching extracted data from document automation...
           </div>
         )}
 
         {!daFetchLoading && daFetchError && (
           <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.25)', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '13px', letterSpacing: '0.04em' }}>
-            <strong>FETCH FAILED:</strong> {daFetchError}
+            <strong>Fetch Failed:</strong> {daFetchError}
           </div>
         )}
 
         {!daFetchLoading && !daFetchError && extractedDocCount === 0 && (
           <div style={{ padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(245,158,11,0.25)', backgroundColor: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontSize: '13px', letterSpacing: '0.04em' }}>
-            <strong>NO DA EXTRACTION VISIBLE:</strong> {daFetchInfo || 'No extracted field data returned yet.'}
+            <strong>No Extraction Visible:</strong> {daFetchInfo || 'No extracted field data returned yet.'}
           </div>
         )}
 
         {!daFetchLoading && !daFetchError && extractedDocCount > 0 && (
           <>
-            <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.25)', backgroundColor: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '12px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              {extractedDocCount} DOCUMENT(S) WITH DA DATA • {totalExtractedFields} FIELD(S)
+            <div style={{ marginBottom: '20px', padding: '14px 16px', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.25)', backgroundColor: 'rgba(16,185,129,0.08)', color: '#10b981', fontSize: '12px', fontWeight: '700', letterSpacing: '0.05em', textTransform: 'none' }}>
+              {extractedDocCount} document(s) with extraction data and {totalExtractedFields} field(s)
             </div>
 
             <div style={{ display: 'grid', gap: '16px' }}>
@@ -1589,9 +1973,9 @@ function OfficerDashboard({ onSwitchRole }) {
                   <div key={doc?.id ?? `${docType}-${doc?.extracted_at ?? ''}`} style={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '14px' }}>
                       <div>
-                        <div style={{ color: '#fff', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '14px' }}>{docType}</div>
+                        <div style={{ color: '#fff', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'none', fontSize: '14px' }}>{toReadableLabel(docType)}</div>
                         <div style={{ color: '#666', fontSize: '11px', letterSpacing: '0.05em', marginTop: '4px' }}>
-                          EXTRACTED {formatDateTime(doc?.extracted_at)} • {fields.length} FIELD(S)
+                          Extracted {formatDateTime(doc?.extracted_at)} and {fields.length} field(s)
                         </div>
                       </div>
                       <button
@@ -1607,21 +1991,21 @@ function OfficerDashboard({ onSwitchRole }) {
                           cursor: canView ? 'pointer' : 'not-allowed',
                         }}
                       >
-                        VIEW SOURCE
+                        View Source
                       </button>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                       {fields.map((field, index) => {
-                        const fieldName = String(field?.field_name || 'unknown_field').replace(/_/g, ' ')
+                        const fieldName = toReadableLabel(String(field?.field_name || 'unknown_field'))
                         const fieldValue = field?.field_value === null || field?.field_value === undefined || String(field.field_value).trim() === '' ? 'N/A' : String(field.field_value)
                         const confidence = typeof field?.confidence_score === 'number' ? `${Math.round(field.confidence_score * 100)}%` : null
 
                         return (
                           <div key={`${fieldName}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px' }}>
-                            <div style={{ color: '#10b981', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700', marginBottom: '6px' }}>{fieldName}</div>
+                            <div style={{ color: '#10b981', fontSize: '10px', letterSpacing: '0.08em', textTransform: 'none', fontWeight: '700', marginBottom: '6px' }}>{fieldName}</div>
                             <div style={{ color: '#e0e0e0', fontSize: '13px', fontWeight: '500', wordBreak: 'break-word', marginBottom: confidence ? '8px' : 0 }}>{fieldValue}</div>
-                            {confidence && <div style={{ color: '#a3a3a3', fontSize: '11px', letterSpacing: '0.04em' }}>CONFIDENCE: {confidence}</div>}
+                            {confidence && <div style={{ color: '#a3a3a3', fontSize: '11px', letterSpacing: '0.04em' }}>Confidence: {confidence}</div>}
                           </div>
                         )
                       })}
@@ -1643,21 +2027,21 @@ function OfficerDashboard({ onSwitchRole }) {
     const checklist = documentChecklists[selectedClaimType] || []
 
     return (
-      <SectionCard number="7" title="DOCUMENT_CHECKLIST">
+      <SectionCard number="7" title="Document Checklist">
         <div style={{ marginBottom: '24px' }}>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em', marginBottom: '8px' }}>CLAIM TYPE:</label>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em', marginBottom: '8px' }}>Claim Type</label>
           <select value={selectedClaimType} onChange={e => setSelectedClaimType(e.target.value)}
             style={{ ...brutalInput, maxWidth: '300px' }}>
-            <option value="minor_damage" style={{ backgroundColor: '#111' }}>MINOR DAMAGE</option>
-            <option value="accident_major" style={{ backgroundColor: '#111' }}>ACCIDENT MAJOR</option>
-            <option value="theft" style={{ backgroundColor: '#111' }}>THEFT</option>
+            <option value="minor_damage" style={{ backgroundColor: '#111' }}>Minor Damage</option>
+            <option value="accident_major" style={{ backgroundColor: '#111' }}>Major Accident</option>
+            <option value="theft" style={{ backgroundColor: '#111' }}>Theft</option>
           </select>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
           {checklist.map((item, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
               <span style={{ color: '#f59e0b', fontSize: '14px', fontWeight: '800' }}>—</span>
-              <span style={{ fontSize: '13px', color: '#e0e0e0', fontWeight: '500', letterSpacing: '0.02em', textTransform: 'uppercase' }}>{item}</span>
+              <span style={{ fontSize: '13px', color: '#e0e0e0', fontWeight: '500', letterSpacing: '0.02em', textTransform: 'none' }}>{item}</span>
             </div>
           ))}
         </div>
@@ -1673,10 +2057,10 @@ function OfficerDashboard({ onSwitchRole }) {
     const canAct = ['UNDER_REVIEW', 'SURVEY_COMPLETED'].includes(status)
 
     return (
-      <SectionCard number="8" title="FRAUD_RISK_REVIEW">
+      <SectionCard number="8" title="Fraud Risk Review">
         {/* Risk Score */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '32px' }}>
-          <div style={{ fontSize: '12px', color: '#a3a3a3', letterSpacing: '0.1em', fontWeight: '600' }}>RISK SCORE:</div>
+          <div style={{ fontSize: '12px', color: '#a3a3a3', letterSpacing: '0.1em', fontWeight: '600' }}>Risk Score</div>
           <span style={{ padding: '8px 24px', borderRadius: '999px', backgroundColor: 'transparent', color: scoreColor, border: `1px solid ${scoreColor}`, fontWeight: '800', fontSize: '14px', letterSpacing: '0.1em' }}>
             {fraudRisk.score}
           </span>
@@ -1684,10 +2068,12 @@ function OfficerDashboard({ onSwitchRole }) {
 
         {/* Risk Signals */}
         <div style={{ marginBottom: '32px' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '16px', color: '#a3a3a3', letterSpacing: '0.1em' }}>DETECTED SIGNALS</div>
+          <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '16px', color: '#a3a3a3', letterSpacing: '0.1em' }}>Detected Signals</div>
           {fraudRisk.signals.map((signal, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', marginBottom: '12px', backgroundColor: signal.level === 'HIGH' ? 'rgba(239, 68, 68, 0.05)' : signal.level === 'MEDIUM' ? 'rgba(245, 158, 11, 0.05)' : 'rgba(255,255,255,0.02)', borderRadius: '12px', border: `1px solid ${signal.level === 'HIGH' ? 'rgba(239,68,68,0.2)' : signal.level === 'MEDIUM' ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.05)'}` }}>
-              <span style={{ fontSize: '14px' }}>{signal.level === 'HIGH' ? '🔴' : signal.level === 'MEDIUM' ? '🟡' : 'ℹ️'}</span>
+              <span style={{ fontSize: '14px', color: signal.level === 'HIGH' ? '#ef4444' : signal.level === 'MEDIUM' ? '#f59e0b' : '#9ca3af' }}>
+                {signal.level === 'HIGH' ? 'High' : signal.level === 'MEDIUM' ? 'Medium' : 'Info'}
+              </span>
               <span style={{ fontSize: '14px', color: '#e0e0e0', fontWeight: '500', letterSpacing: '0.02em' }}>{signal.text}</span>
             </div>
           ))}
@@ -1698,20 +2084,20 @@ function OfficerDashboard({ onSwitchRole }) {
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <button onClick={() => showSuccess('Continuing processing — no fraud concerns.')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
-              style={{ ...btnSuccess, padding: '12px 24px', fontSize: '12px' }}>CONTINUE PROCESSING</button>
+              style={{ ...btnSuccess, padding: '12px 24px', fontSize: '12px' }}>Continue Processing</button>
             <button onClick={() => showSuccess('Additional verification requested.')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
-              style={{ ...btnWarning, padding: '12px 24px', fontSize: '12px' }}>REQUEST VERIFICATION</button>
+              style={{ ...btnWarning, padding: '12px 24px', fontSize: '12px' }}>Request Verification</button>
             <button onClick={handleFlagInvestigation} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnDanger, padding: '12px 24px', fontSize: '12px' }}>
-              {loading ? 'FLAGGING...' : 'FLAG INVESTIGATION'}
+              {loading ? 'Flagging...' : 'Flag Investigation'}
             </button>
           </div>
         )}
         {status === 'UNDER_INVESTIGATION' && (
           <div style={{ padding: '16px 20px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', fontWeight: '700', letterSpacing: '0.05em', fontSize: '13px' }}>
-            ⚠ CLAIM CURRENTLY UNDER INVESTIGATION.
+            Claim currently under investigation.
           </div>
         )}
       </SectionCard>
@@ -1722,10 +2108,10 @@ function OfficerDashboard({ onSwitchRole }) {
   // SECTION 9 — Surveyor Assignment
   // -----------------------------------------------
   const renderSection9 = () => (
-    <SectionCard number="9" title="SURVEY_WORKFLOW">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
+    <SectionCard number="9" title="Survey Workflow">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '24px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>SURVEYOR ID</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Surveyor ID</label>
           <input
             type="text"
             value={surveyorAssignment.surveyor_id}
@@ -1735,7 +2121,7 @@ function OfficerDashboard({ onSwitchRole }) {
           />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>SURVEYOR NAME</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Surveyor Name</label>
           <input
             type="text"
             value={surveyorAssignment.surveyor_name}
@@ -1747,7 +2133,7 @@ function OfficerDashboard({ onSwitchRole }) {
       </div>
 
       <div style={{ marginBottom: '24px' }}>
-        <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>OFFICER NOTES TO SURVEYOR</label>
+        <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Officer Notes To Surveyor</label>
         <textarea
           value={surveyorAssignment.notes}
           onChange={e => handleSurveyAssignmentChange('notes', e.target.value)}
@@ -1759,62 +2145,62 @@ function OfficerDashboard({ onSwitchRole }) {
 
       {status === 'UNDER_REVIEW' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '24px', padding: '24px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <p style={{ color: '#a3a3a3', fontSize: '13px', margin: 0, letterSpacing: '0.05em', textTransform: 'uppercase', maxWidth: '400px', lineHeight: '1.6' }}>ASSIGN A FIELD SURVEYOR TO INSPECT THE VEHICLE AND ASSESS DAMAGE.</p>
+          <p style={{ color: '#a3a3a3', fontSize: '13px', margin: 0, letterSpacing: '0.03em', maxWidth: '400px', lineHeight: '1.6' }}>Assign a field surveyor to inspect the vehicle and assess damage.</p>
           <button onClick={handleAssignSurveyor} disabled={loading}
             onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
             style={{ ...btnPrimary, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-            {loading ? 'ASSIGNING...' : 'ASSIGN SURVEYOR'}
+            {loading ? 'Assigning...' : 'Assign Surveyor'}
           </button>
         </div>
       )}
 
       {status === 'SURVEY_ASSIGNED' && (
         <div style={{ padding: '20px', backgroundColor: 'rgba(56, 189, 248, 0.1)', borderRadius: '12px', color: '#38bdf8', fontWeight: '700', marginBottom: '24px', border: '1px solid rgba(56, 189, 248, 0.2)', fontSize: '13px', letterSpacing: '0.05em' }}>
-          ✔ SURVEYOR ASSIGNED — AWAITING SURVEY COMPLETION
+          Surveyor assigned. Waiting for survey completion.
         </div>
       )}
 
       {latestSurveyReport && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', marginBottom: '24px' }}>
           <div style={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-              <h5 style={{ margin: 0, color: '#fff', fontSize: '18px', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>LATEST SNAPSHOT</h5>
-              <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: latestSubmittedSurveyReport ? getRecommendationTone(latestSubmittedSurveyReport.recommendation).backgroundColor : 'rgba(255,255,255,0.1)', color: latestSubmittedSurveyReport ? getRecommendationTone(latestSubmittedSurveyReport.recommendation).color : '#fff', fontWeight: '800', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                {latestSubmittedSurveyReport ? latestSubmittedSurveyReport.recommendation : 'AWAITING REPORT'}
+              <h5 style={{ margin: 0, color: '#fff', fontSize: '18px', letterSpacing: '-0.01em' }}>Latest Snapshot</h5>
+              <span style={{ padding: '6px 12px', borderRadius: '999px', backgroundColor: latestSubmittedSurveyReport ? getRecommendationTone(latestSubmittedSurveyReport.recommendation).backgroundColor : 'rgba(255,255,255,0.1)', color: latestSubmittedSurveyReport ? getRecommendationTone(latestSubmittedSurveyReport.recommendation).color : '#fff', fontWeight: '800', fontSize: '11px', letterSpacing: '0.05em', textTransform: 'none' }}>
+                {latestSubmittedSurveyReport ? latestSubmittedSurveyReport.recommendation : 'Awaiting Report'}
               </span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '13px' }}>
-              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>VERSION: </span><strong style={{ color: '#fff' }}>{latestSurveyReport.version_number}</strong></div>
-              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>ASSIGNED: </span><strong style={{ color: '#fff' }}>{formatDateTime(latestSurveyReport.assigned_at)}</strong></div>
-              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>SURVEYOR: </span><strong style={{ color: '#fff' }}>{latestSurveyReport.surveyor_name || latestSurveyReport.surveyor_id}</strong></div>
-              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>SUBMITTED: </span><strong style={{ color: '#fff' }}>{formatDateTime(latestSubmittedSurveyReport?.submitted_at)}</strong></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', fontSize: '13px' }}>
+              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>Version: </span><strong style={{ color: '#fff' }}>{latestSurveyReport.version_number}</strong></div>
+              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>Assigned: </span><strong style={{ color: '#fff' }}>{formatDateTime(latestSurveyReport.assigned_at)}</strong></div>
+              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>Surveyor: </span><strong style={{ color: '#fff' }}>{latestSurveyReport.surveyor_name || latestSurveyReport.surveyor_id}</strong></div>
+              <div><span style={{ color: '#666', letterSpacing: '0.05em' }}>Submitted: </span><strong style={{ color: '#fff' }}>{formatDateTime(latestSubmittedSurveyReport?.submitted_at)}</strong></div>
             </div>
 
             {latestSubmittedSurveyReport && (
               <div style={{ marginTop: '24px', display: 'grid', gap: '16px' }}>
                 <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em', fontWeight: '600' }}>DAMAGE DESCRIPTION</div>
+                  <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em', fontWeight: '600' }}>Damage Description</div>
                   <div style={{ color: '#e0e0e0', lineHeight: '1.6', fontSize: '14px' }}>{latestSubmittedSurveyReport.damage_description || 'No description provided'}</div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>CONDITION</div><div style={{ color: '#fff', fontWeight: '700' }}>{latestSubmittedSurveyReport.vehicle_condition || 'N/A'}</div></div>
-                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>ESTIMATE</div><div style={{ color: '#10b981', fontWeight: '700' }}>{formatCurrency(latestSubmittedSurveyReport.estimated_repair_cost)}</div></div>
-                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>PARTS DAMAGED</div><div style={{ color: '#fff', fontWeight: '700' }}>{latestSubmittedSurveyReport.parts_damaged || 'N/A'}</div></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>Condition</div><div style={{ color: '#fff', fontWeight: '700' }}>{latestSubmittedSurveyReport.vehicle_condition || 'N/A'}</div></div>
+                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>Estimate</div><div style={{ color: '#10b981', fontWeight: '700' }}>{formatCurrency(latestSubmittedSurveyReport.estimated_repair_cost)}</div></div>
+                  <div style={{ padding: '16px', borderRadius: '12px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}><div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', letterSpacing: '0.1em' }}>Parts Damaged</div><div style={{ color: '#fff', fontWeight: '700' }}>{latestSubmittedSurveyReport.parts_damaged || 'N/A'}</div></div>
                 </div>
               </div>
             )}
           </div>
 
           <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px', padding: '24px' }}>
-            <h5 style={{ margin: '0 0 20px', color: '#fff', fontSize: '18px', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>REPORT HISTORY</h5>
+            <h5 style={{ margin: '0 0 20px', color: '#fff', fontSize: '18px', letterSpacing: '-0.01em' }}>Report History</h5>
             {surveyReports.length === 0 ? (
-              <div style={{ color: '#666', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NO SURVEY ACTIVITY YET.</div>
+              <div style={{ color: '#666', fontSize: '13px', letterSpacing: '0.03em' }}>No survey activity yet.</div>
             ) : (
               surveyReports.map(report => (
                 <div key={report.id} style={{ padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'opacity 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.opacity = 0.7} onMouseLeave={e => e.currentTarget.style.opacity = 1}>
-                  <div style={{ fontWeight: '800', color: '#fff', letterSpacing: '0.05em' }}>VERSION {report.version_number}</div>
-                  <div style={{ fontSize: '12px', color: '#a3a3a3', marginTop: '6px', letterSpacing: '0.05em' }}>{report.submitted_at ? `SUBMITTED ${formatDateTime(report.submitted_at)}` : `ASSIGNED ${formatDateTime(report.assigned_at)}`}</div>
-                  {report.officer_review_notes && <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '8px', fontStyle: 'italic' }}>NOTE: {report.officer_review_notes}</div>}
+                  <div style={{ fontWeight: '700', color: '#fff', letterSpacing: '0.03em' }}>Version {report.version_number}</div>
+                  <div style={{ fontSize: '12px', color: '#a3a3a3', marginTop: '6px', letterSpacing: '0.03em' }}>{report.submitted_at ? `Submitted ${formatDateTime(report.submitted_at)}` : `Assigned ${formatDateTime(report.assigned_at)}`}</div>
+                  {report.officer_review_notes && <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '8px', fontStyle: 'italic' }}>Note: {report.officer_review_notes}</div>}
                 </div>
               ))
             )}
@@ -1824,7 +2210,7 @@ function OfficerDashboard({ onSwitchRole }) {
 
       {status === 'SURVEY_COMPLETED' && (
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '24px' }}>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REQUEST RE-INSPECTION</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Request Reinspection</label>
           <textarea
             value={reinspectionReason}
             onChange={e => setReinspectionReason(e.target.value)}
@@ -1835,14 +2221,14 @@ function OfficerDashboard({ onSwitchRole }) {
           <button onClick={handleReopenSurvey} disabled={loading}
             onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
             style={{ ...btnWarning, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-            {loading ? 'REASSIGNING...' : 'SEND BACK FOR RE-INSPECTION'}
+            {loading ? 'Reassigning...' : 'Send For Reinspection'}
           </button>
         </div>
       )}
 
       {!['UNDER_REVIEW', 'SURVEY_ASSIGNED', 'SURVEY_COMPLETED'].includes(status) && (
-        <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          {['SUBMITTED'].includes(status) ? 'COMPLETE POLICY VALIDATION FIRST.' : 'SURVEY WORKFLOW INACTIVE FOR CURRENT STATUS.'}
+        <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'none' }}>
+          {['SUBMITTED'].includes(status) ? 'Complete policy validation first.' : 'Survey workflow is inactive for the current status.'}
         </div>
       )}
     </SectionCard>
@@ -1852,31 +2238,31 @@ function OfficerDashboard({ onSwitchRole }) {
   // SECTION 10 — Claim Amount Evaluation (Calculator)
   // -----------------------------------------------
   const renderSection10 = () => (
-    <SectionCard number="10" title="AMOUNT_EVALUATION">
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+    <SectionCard number="10" title="Amount Evaluation">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', marginBottom: '32px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REPAIR ESTIMATE (₹)</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Repair Estimate (INR)</label>
           <input type="number" value={calcRepairEstimate} onChange={e => { markFieldTouched('calcRepairEstimate'); setCalcRepairEstimate(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEPRECIATION (₹)</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Depreciation (INR)</label>
           <input type="number" value={calcDepreciation} onChange={e => { markFieldTouched('calcDepreciation'); setCalcDepreciation(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
         <div>
-          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEDUCTIBLE (₹)</label>
+          <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Deductible (INR)</label>
           <input type="number" value={calcDeductible} onChange={e => { markFieldTouched('calcDeductible'); setCalcDeductible(e.target.value) }}
             style={{ ...brutalInput, fontSize: '18px', fontWeight: '700' }} placeholder="0" />
         </div>
       </div>
       <div style={{ padding: '24px 32px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '14px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>FINAL PAYABLE AMOUNT</span>
+        <span style={{ fontSize: '14px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Final Payable Amount</span>
         <span style={{ fontSize: '36px', fontWeight: '800', color: '#10b981', letterSpacing: '-0.02em' }}>₹{calculatedPayable.toLocaleString()}</span>
       </div>
       {policy?.idv_amount && calculatedPayable > policy.idv_amount && (
         <div style={{ marginTop: '16px', padding: '16px 20px', backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.2)', color: '#f59e0b', fontSize: '13px', fontWeight: '600', letterSpacing: '0.05em' }}>
-          ⚠ CALCULATED AMOUNT EXCEEDS IDV (₹{policy.idv_amount.toLocaleString()}). SETTLEMENT CAPPED AT IDV.
+          Calculated amount exceeds IDV (INR {policy.idv_amount.toLocaleString()}). Settlement is capped at IDV.
         </div>
       )}
     </SectionCard>
@@ -1907,15 +2293,15 @@ function OfficerDashboard({ onSwitchRole }) {
 
     if (isTerminal || status === 'APPROVED') {
       return (
-        <SectionCard number="11" title="DECISION_PANEL">
+        <SectionCard number="11" title="Decision Panel">
           <div style={{ padding: '24px', backgroundColor: status === 'APPROVED' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '16px', border: `1px solid ${status === 'APPROVED' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}` }}>
             <strong style={{ color: status === 'APPROVED' ? '#10b981' : '#ef4444', fontSize: '18px', letterSpacing: '0.05em' }}>
-              {status === 'APPROVED' ? '✔ CLAIM APPROVED' : status === 'REJECTED' ? '✘ CLAIM REJECTED' : `CLAIM ${status}`}
+              {status === 'APPROVED' ? 'Claim approved' : status === 'REJECTED' ? 'Claim rejected' : `Claim ${getStatusLabel(status)}`}
             </strong>
             {settlementResult?.settlement && (
               <div style={{ marginTop: '16px', fontSize: '15px', color: '#e0e0e0', letterSpacing: '0.02em' }}>
-                FINAL PAYABLE: <strong style={{ color: '#10b981', fontSize: '20px' }}>₹{settlementResult.settlement.final_payable?.toLocaleString()}</strong>
-                {settlementResult.settlement.idv_capped && <span style={{ color: '#f59e0b', marginLeft: '12px', fontSize: '12px', fontWeight: '800' }}>*IDV CAPPED</span>}
+                Final payable: <strong style={{ color: '#10b981', fontSize: '20px' }}>₹{settlementResult.settlement.final_payable?.toLocaleString()}</strong>
+                {settlementResult.settlement.idv_capped && <span style={{ color: '#f59e0b', marginLeft: '12px', fontSize: '12px', fontWeight: '800' }}>IDV capped</span>}
               </div>
             )}
           </div>
@@ -1924,18 +2310,18 @@ function OfficerDashboard({ onSwitchRole }) {
     }
 
     return (
-      <SectionCard number="11" title="DECISION_PANEL">
+      <SectionCard number="11" title="Decision Panel">
         {!canDecide && (
-          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', marginBottom: '32px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            COMPLETE PREVIOUS REVIEW STEPS BEFORE MAKING A DECISION. CURRENT STATUS: {status}
+          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', marginBottom: '32px', letterSpacing: '0.05em', textTransform: 'none' }}>
+            Complete previous review steps before making a decision. Current status: {getStatusLabel(status)}
           </div>
         )}
 
         <div style={{ marginBottom: '24px', padding: '18px 20px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ color: '#38bdf8', fontSize: '12px', letterSpacing: '0.08em', fontWeight: '800', textTransform: 'uppercase' }}>
-                PREFILLED FROM DA EXTRACTION
+              <div style={{ color: '#38bdf8', fontSize: '12px', letterSpacing: '0.08em', fontWeight: '800', textTransform: 'none' }}>
+                Prefilled From Extraction
               </div>
               <div style={{ color: '#a3a3a3', fontSize: '12px', marginTop: '6px', letterSpacing: '0.03em' }}>
                 Review values against the raw document before approving, rejecting, or escalating.
@@ -1955,7 +2341,7 @@ function OfficerDashboard({ onSwitchRole }) {
                 cursor: verificationDoc ? 'pointer' : 'not-allowed'
               }}
             >
-              VIEW RAW DOCUMENT
+              View Raw Document
             </button>
           </div>
 
@@ -1963,7 +2349,7 @@ function OfficerDashboard({ onSwitchRole }) {
             <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
               {prefillSummary.map((item) => (
                 <div key={item.key} style={{ backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '10px', padding: '10px 12px' }}>
-                  <div style={{ color: '#fff', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: '700' }}>{item.label}</div>
+                  <div style={{ color: '#fff', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'none', fontWeight: '700' }}>{item.label}</div>
                   <div style={{ color: '#e0e0e0', fontSize: '13px', marginTop: '6px', wordBreak: 'break-word' }}>{item.value || 'N/A'}</div>
                   <div style={{ color: '#94a3b8', fontSize: '11px', marginTop: '6px', letterSpacing: '0.03em' }}>{item.source}</div>
                 </div>
@@ -1971,23 +2357,23 @@ function OfficerDashboard({ onSwitchRole }) {
             </div>
           ) : (
             <div style={{ marginTop: '12px', color: '#a3a3a3', fontSize: '12px', letterSpacing: '0.03em' }}>
-              No DA field mapping has been applied yet. Use REFRESH_DA_DATA in section 14 to pull extracted fields.
+              No field mapping has been applied yet. Use Refresh Data in section 14 to pull extracted fields.
             </div>
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
           {/* Approve */}
           <div style={{ border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '16px', padding: '24px', backgroundColor: 'rgba(16, 185, 129, 0.02)' }}>
-            <h5 style={{ margin: '0 0 24px', color: '#10b981', fontSize: '18px', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>APPROVE CLAIM</h5>
+            <h5 style={{ margin: '0 0 24px', color: '#10b981', fontSize: '18px', letterSpacing: '-0.01em' }}>Approve Claim</h5>
             <form onSubmit={handleApprove}>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>VEHICLE AGE (YRS)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Vehicle Age (Years)</label>
                 <input type="number" step="0.1" value={vehicleAgeYears} onChange={e => { markFieldTouched('vehicleAgeYears'); setVehicleAgeYears(e.target.value) }} required
                   style={brutalInput} />
               </div>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>PARTS</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Parts</label>
                 {parts.map((part, index) => (
                   <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <input type="text" placeholder="Type" value={part.type} onChange={e => updatePart(index, 'type', e.target.value)}
@@ -2002,51 +2388,51 @@ function OfficerDashboard({ onSwitchRole }) {
                 ))}
                 <button type="button" onClick={addPart}
                   onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
-                  style={{ ...btnOutline, width: '100%', marginTop: '8px', borderColor: 'rgba(255,255,255,0.1)' }}>+ ADD PART</button>
+                  style={{ ...btnOutline, width: '100%', marginTop: '8px', borderColor: 'rgba(255,255,255,0.1)' }}>Add Part</button>
               </div>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>DEDUCTIBLE (₹)</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Deductible (INR)</label>
                 <input type="number" step="0.01" value={deductibleAmount} onChange={e => { markFieldTouched('deductibleAmount'); setDeductibleAmount(e.target.value) }} required
                   style={brutalInput} />
               </div>
               <button type="submit" disabled={loading || !canDecide}
                 onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
                 style={{ ...btnSuccess, width: '100%', opacity: (loading || !canDecide) ? 0.3 : 1, cursor: (loading || !canDecide) ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'PROCESSING...' : 'APPROVE FULLY'}
+                {loading ? 'Processing...' : 'Approve Claim'}
               </button>
             </form>
           </div>
 
           {/* Reject */}
           <div style={{ border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '16px', padding: '24px', backgroundColor: 'rgba(239, 68, 68, 0.02)' }}>
-            <h5 style={{ margin: '0 0 24px', color: '#ef4444', fontSize: '18px', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>REJECT CLAIM</h5>
+            <h5 style={{ margin: '0 0 24px', color: '#ef4444', fontSize: '18px', letterSpacing: '-0.01em' }}>Reject Claim</h5>
             <form onSubmit={handleReject}>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REJECTION REASON</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Rejection Reason</label>
                 <textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} required rows="8"
                   style={{ ...brutalInput, resize: 'none', minHeight: '260px' }} />
               </div>
               <button type="submit" disabled={loading || !canDecide}
                 onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
                 style={{ ...btnDanger, width: '100%', opacity: (loading || !canDecide) ? 0.3 : 1, cursor: (loading || !canDecide) ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'PROCESSING...' : 'CONFIRM REJECT'}
+                {loading ? 'Processing...' : 'Reject Claim'}
               </button>
             </form>
           </div>
 
           {/* Escalate */}
           <div style={{ border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '16px', padding: '24px', backgroundColor: 'rgba(245, 158, 11, 0.02)' }}>
-            <h5 style={{ margin: '0 0 24px', color: '#f59e0b', fontSize: '18px', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '0.05em' }}>ESCALATE CLAIM</h5>
+            <h5 style={{ margin: '0 0 24px', color: '#f59e0b', fontSize: '18px', letterSpacing: '-0.01em' }}>Escalate Claim</h5>
             <form onSubmit={handleEscalate}>
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>ESCALATION REASON</label>
+                <label style={{ display: 'block', marginBottom: '8px', fontSize: '11px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Escalation Reason</label>
                 <textarea value={escalationReason} onChange={e => setEscalationReason(e.target.value)} required rows="8"
                   style={{ ...brutalInput, resize: 'none', minHeight: '260px' }} />
               </div>
               <button type="submit" disabled={loading || !canDecide}
                 onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
                 style={{ ...btnWarning, width: '100%', opacity: (loading || !canDecide) ? 0.3 : 1, cursor: (loading || !canDecide) ? 'not-allowed' : 'pointer' }}>
-                {loading ? 'PROCESSING...' : 'ESCALATE TO SUPREME'}
+                {loading ? 'Processing...' : 'Escalate Claim'}
               </button>
             </form>
           </div>
@@ -2066,24 +2452,24 @@ function OfficerDashboard({ onSwitchRole }) {
 
     if (!isApproved && !isRepair && !isPaymentProcessing && !isPaid) {
       return (
-        <SectionCard number="12" title="SETTLEMENT_PROCESSING">
-          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            {isTerminal ? 'SETTLEMENT PROCESSING NOT APPLICABLE.' : 'CLAIM MUST BE APPROVED BEFORE SETTLEMENT PROCESSING.'}
+        <SectionCard number="12" title="Settlement Processing">
+          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'none' }}>
+            {isTerminal ? 'Settlement processing not applicable.' : 'Claim must be approved before settlement processing.'}
           </div>
         </SectionCard>
       )
     }
 
     return (
-      <SectionCard number="12" title="SETTLEMENT_PROCESSING">
+      <SectionCard number="12" title="Settlement Processing">
         {/* Settlement Type Selection */}
         {isApproved && (
           <div style={{ marginBottom: '32px' }}>
-            <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>SETTLEMENT TYPE</label>
+            <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Settlement Type</label>
             <select value={settlementType} onChange={e => setSettlementType(e.target.value)}
               style={{ ...brutalInput, maxWidth: '400px' }}>
-              <option value="cashless" style={{ backgroundColor: '#111' }}>CASHLESS REPAIR</option>
-              <option value="reimbursement" style={{ backgroundColor: '#111' }}>REIMBURSEMENT</option>
+              <option value="cashless" style={{ backgroundColor: '#111' }}>Cashless Repair</option>
+              <option value="reimbursement" style={{ backgroundColor: '#111' }}>Reimbursement</option>
             </select>
           </div>
         )}
@@ -2092,19 +2478,19 @@ function OfficerDashboard({ onSwitchRole }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
           {settlementType === 'cashless' ? (
             <>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isApproved ? '#10b981' : 'rgba(255,255,255,0.05)', color: isApproved ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>APPROVED</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isApproved ? '#10b981' : 'rgba(255,255,255,0.05)', color: isApproved ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Approved</span>
               <span style={{ color: '#444' }}>→</span>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isRepair ? '#f59e0b' : 'rgba(255,255,255,0.05)', color: isRepair ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>REPAIRING</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isRepair ? '#f59e0b' : 'rgba(255,255,255,0.05)', color: isRepair ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Repairing</span>
               <span style={{ color: '#444' }}>→</span>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaid ? '#10b981' : 'rgba(255,255,255,0.05)', color: isPaid ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>PAID & SETTLED</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaid ? '#10b981' : 'rgba(255,255,255,0.05)', color: isPaid ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Paid and Settled</span>
             </>
           ) : (
             <>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isApproved ? '#10b981' : 'rgba(255,255,255,0.05)', color: isApproved ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>APPROVED</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isApproved ? '#10b981' : 'rgba(255,255,255,0.05)', color: isApproved ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Approved</span>
               <span style={{ color: '#444' }}>→</span>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaymentProcessing ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: isPaymentProcessing ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>PROCESSING PAYMENT</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaymentProcessing ? '#38bdf8' : 'rgba(255,255,255,0.05)', color: isPaymentProcessing ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Processing Payment</span>
               <span style={{ color: '#444' }}>→</span>
-              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaid ? '#10b981' : 'rgba(255,255,255,0.05)', color: isPaid ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>PAID & SETTLED</span>
+              <span style={{ padding: '10px 20px', borderRadius: '999px', backgroundColor: isPaid ? '#10b981' : 'rgba(255,255,255,0.05)', color: isPaid ? '#000' : '#666', fontWeight: '800', fontSize: '12px', letterSpacing: '0.05em' }}>Paid and Settled</span>
             </>
           )}
         </div>
@@ -2115,33 +2501,33 @@ function OfficerDashboard({ onSwitchRole }) {
             <button onClick={() => handleUpdateSettlementStatus('REPAIR_IN_PROGRESS')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnPrimary, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              START REPAIR
+              Start Repair
             </button>
           )}
           {isApproved && settlementType === 'reimbursement' && (
             <button onClick={() => handleUpdateSettlementStatus('PAYMENT_PROCESSING')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnPrimary, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              START PAYMENT
+              Start Payment
             </button>
           )}
           {isRepair && (
             <button onClick={() => handleUpdateSettlementStatus('PAID')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnSuccess, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              MARK REPAIR COMPLETED & PAID
+              Mark Repair Completed and Paid
             </button>
           )}
           {isPaymentProcessing && (
             <button onClick={() => handleUpdateSettlementStatus('PAID')} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnSuccess, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              MARK PAID
+              Mark Paid
             </button>
           )}
           {isPaid && (
             <div style={{ padding: '16px 20px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', color: '#10b981', fontWeight: '800', border: '1px solid rgba(16, 185, 129, 0.2)', letterSpacing: '0.05em' }}>
-              ✔ PAYMENT COMPLETED — PROCEED TO CLOSURE
+              Payment completed. You can proceed to closure.
             </div>
           )}
         </div>
@@ -2156,26 +2542,26 @@ function OfficerDashboard({ onSwitchRole }) {
     const canClose = ['PAID', 'APPROVED'].includes(status)
 
     return (
-      <SectionCard number="13" title="CLAIM_CLOSURE">
+      <SectionCard number="13" title="Claim Closure">
         {status === 'CLOSED' ? (
           <div style={{ padding: '32px', backgroundColor: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.2)', textAlign: 'center' }}>
             <div style={{ fontSize: '48px', color: '#10b981', marginBottom: '16px' }}>✔</div>
-            <div style={{ fontSize: '24px', fontWeight: '800', color: '#10b981', letterSpacing: '0.1em', fontFamily: "'Bebas Neue', Oswald, sans-serif" }}>CLAIM SUCCESSFULLY CLOSED</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#10b981', letterSpacing: '0.04em' }}>Claim successfully closed</div>
           </div>
         ) : canClose ? (
           <div>
             <p style={{ color: '#a3a3a3', fontSize: '14px', marginBottom: '24px', letterSpacing: '0.05em', lineHeight: '1.6' }}>
-              INITIATE FINAL CLOSURE PROTOCOL. THIS ACTION WILL ARCHIVE THE CLAIM.
+              Initiate final closure protocol. This action will archive the claim.
             </p>
             <button onClick={handleCloseClaimFinal} disabled={loading}
               onMouseEnter={hoverEffect} onMouseLeave={leaveEffect}
               style={{ ...btnPrimary, opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              {loading ? 'ARCHIVING...' : 'CLOSE & ARCHIVE CLAIM'}
+              {loading ? 'Archiving...' : 'Close and Archive Claim'}
             </button>
           </div>
         ) : (
-          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            {isTerminal ? 'CLAIM IS ALREADY IN TERMINAL STATE.' : 'CLAIM MUST BE APPROVED/PAID BEFORE CLOSURE.'}
+          <div style={{ padding: '16px 20px', backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', color: '#666', fontSize: '13px', letterSpacing: '0.05em', textTransform: 'none' }}>
+            {isTerminal ? 'Claim is already in terminal state.' : 'Claim must be approved or paid before closure.'}
           </div>
         )}
       </SectionCard>
@@ -2188,82 +2574,231 @@ function OfficerDashboard({ onSwitchRole }) {
   const renderWorkflowPanel = () => {
     if (!selectedClaim) return null
 
+    const sectionNodeMap = {
+      'section-1': renderSection1(),
+      'section-2': renderSection2(),
+      'section-3': renderSection3(),
+      'section-4': renderSection4(),
+      'section-5': renderSection5(),
+      'section-6': renderSection6(),
+      'section-14': renderSection14(),
+      'section-7': renderSection7(),
+      'section-8': renderSection8(),
+      'section-9': renderSection9(),
+      'section-10': renderSection10(),
+      'section-11': renderSection11(),
+      'section-12': renderSection12(),
+      'section-13': renderSection13(),
+      timeline: renderTimeline()
+    }
+
+    const sectionPages = [
+      ['section-1', 'section-2', 'section-3'],
+      ['section-4', 'section-5', 'section-6'],
+      ['section-14', 'section-7', 'section-8'],
+      ['section-9', 'section-10', 'section-11'],
+      ['section-12', 'section-13', 'timeline']
+    ]
+
+    const sectionEntriesById = Object.fromEntries(
+      Object.entries(sectionNodeMap)
+        .filter(([, node]) => Boolean(node))
+        .map(([id, node]) => [id, { id, node }])
+    )
+
+    const availablePageIds = sectionPages.map((pageIds) => pageIds.filter((id) => Boolean(sectionEntriesById[id])))
+
+    const totalPages = sectionPages.length
+    const safePage = Math.max(0, Math.min(workflowPage, totalPages - 1))
+    const activePageIds = availablePageIds[safePage] || []
+    const visibleSections = activePageIds.map((id) => sectionEntriesById[id]).filter(Boolean)
+
+    const visibleCountByPage = availablePageIds.map((ids) => ids.length)
+    const startIndex = visibleCountByPage.slice(0, safePage).reduce((sum, count) => sum + count, 0)
+    const totalVisibleCards = visibleCountByPage.reduce((sum, count) => sum + count, 0)
+    const endIndex = Math.min(startIndex + visibleSections.length, totalVisibleCards)
+
+    const useStructuredDesktopLayout = viewportWidth >= 1120
+
+    const pageLayoutRules = [
+      {
+        container: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+          gap: '14px',
+          alignItems: 'start'
+        },
+        items: {
+          'section-1': { gridColumn: '1 / -1' },
+          'section-2': { gridColumn: '1 / span 6' },
+          'section-3': { gridColumn: '7 / span 6' }
+        }
+      },
+      {
+        container: {
+          display: 'grid',
+          gridTemplateColumns: 'minmax(340px, 0.92fr) minmax(420px, 1.08fr)',
+          gridTemplateRows: 'auto auto',
+          gap: '14px',
+          alignItems: 'stretch'
+        },
+        items: {
+          'section-4': { gridColumn: '1', gridRow: '1' },
+          'section-6': { gridColumn: '1', gridRow: '2' },
+          'section-5': { gridColumn: '2', gridRow: '1 / span 2', alignSelf: 'stretch' }
+        }
+      },
+      {
+        container: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+          gap: '14px',
+          alignItems: 'start'
+        },
+        items: {
+          'section-14': { gridColumn: '1 / -1' },
+          'section-7': { gridColumn: '1 / span 6' },
+          'section-8': { gridColumn: '7 / span 6' }
+        }
+      },
+      {
+        container: {
+          display: 'grid',
+          gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+          gap: '14px',
+          alignItems: 'start'
+        },
+        items: {
+          'section-11': { gridColumn: '1 / -1' },
+          'section-9': { gridColumn: '1 / span 6' },
+          'section-10': { gridColumn: '7 / span 6' }
+        }
+      },
+      {
+        container: {
+          display: 'grid',
+          gridTemplateColumns: 'minmax(340px, 0.92fr) minmax(420px, 1.08fr)',
+          gridTemplateRows: 'auto auto',
+          gap: '14px',
+          alignItems: 'stretch'
+        },
+        items: {
+          'section-12': { gridColumn: '1', gridRow: '1' },
+          timeline: { gridColumn: '1', gridRow: '2' },
+          'section-13': { gridColumn: '2', gridRow: '1 / span 2', alignSelf: 'stretch' }
+        }
+      }
+    ]
+
+    const activeLayout = pageLayoutRules[safePage] || null
+
+    const currentWorkflowGridStyle = useStructuredDesktopLayout && activeLayout
+      ? activeLayout.container
+      : workflowSectionGrid
+
+    const getWorkflowItemStyle = (entryId) => {
+      if (!useStructuredDesktopLayout || !activeLayout || !activeLayout.items?.[entryId]) {
+        return workflowSectionItem
+      }
+
+      return {
+        ...workflowSectionItem,
+        ...activeLayout.items[entryId]
+      }
+    }
+
     return (
-      <div style={{ animation: 'fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1)' }}>
+      <div ref={workflowViewRef} style={{ animation: 'fadeIn 1s cubic-bezier(0.16, 1, 0.3, 1)' }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', paddingBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '26px', paddingBottom: '18px', borderBottom: '1px solid rgba(255,255,255,0.1)', gap: '16px', flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '4vw', color: '#fff', fontFamily: "'Bebas Neue', Oswald, sans-serif", letterSpacing: '-0.02em', lineHeight: 0.9 }}>
-              CLAIM_#{selectedClaim.id}
+            <h2 style={{ margin: 0, fontSize: 'clamp(2rem, 4.2vw, 3.8rem)', color: '#fff', letterSpacing: '-0.03em', lineHeight: 0.96, fontWeight: 520 }}>
+              Claim {selectedClaim.id}
             </h2>
-            <p style={{ margin: '16px 0 0', color: '#a3a3a3', fontSize: '18px', letterSpacing: '0.05em' }}>{selectedClaim.claim_number}</p>
+            <p style={{ margin: '10px 0 0', color: 'rgba(255,255,255,0.58)', fontSize: '1rem', letterSpacing: '0.02em' }}>{selectedClaim.claim_number}</p>
           </div>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {canRequestDocuments && (
-              <button
-                onClick={openRequestDocsModal}
-                disabled={loading}
-                onMouseEnter={hoverEffect}
-                onMouseLeave={leaveEffect}
-                style={{ ...btnWarning, padding: '12px 20px', fontSize: '12px', opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
-              >
-                REQUEST DOCUMENTS
-              </button>
-            )}
             <button onClick={handleBackToQueue}
+              onMouseEnter={hoverEffect}
+              onMouseLeave={leaveEffect}
               style={{ ...btnOutline }}>
-              RETURN TO QUEUE
+              Back To Queue
             </button>
           </div>
         </div>
 
+        <div className="od-page-nav" style={{ marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <div style={sectionPill}>Page {safePage + 1} of {totalPages} · {visibleSections.length} cards</div>
+          <div />
+        </div>
+
         {/* Error/Success messages */}
         {error && (
-          <div style={{ color: '#ef4444', padding: '16px', marginBottom: '24px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
-            <strong>ERROR:</strong> {error}
+          <div style={{ color: '#fca5a5', padding: '16px', marginBottom: '18px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '14px', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <strong>Error:</strong> {error}
           </div>
         )}
         {successMessage && (
-          <div style={{ color: '#10b981', padding: '16px', marginBottom: '24px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', border: '1px solid rgba(16,185,129,0.2)' }}>
-            <strong>SUCCESS /</strong> {successMessage}
+          <div style={{ color: '#6ee7b7', padding: '16px', marginBottom: '18px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '14px', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <strong>Success:</strong> {successMessage}
           </div>
         )}
 
         {/* DOCUMENT_REQUIRED Banner */}
         {status === 'DOCUMENT_REQUIRED' && (
           <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '18px 20px', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
-            <span style={{ color: '#f59e0b', fontWeight: '800', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              Waiting on Customer: Documents Requested.
+            <span style={{ color: '#f59e0b', fontWeight: '800', letterSpacing: '0.08em', textTransform: 'none' }}>
+              Waiting for customer documents.
             </span>
           </div>
         )}
 
         {/* Escalation Notice */}
         {status === 'ESCALATED' && (
-          <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '24px', borderRadius: '16px', marginBottom: '24px', textAlign: 'center' }}>
-            <span style={{ fontSize: '24px', marginRight: '16px' }}>⚠️</span>
-            <span style={{ color: '#fcd34d', fontWeight: '800', letterSpacing: '0.05em' }}>CLAIM ESCALATED TO SENIOR OFFICER FOR REVIEW.</span>
+          <div style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '18px 20px', borderRadius: '16px', marginBottom: '20px', textAlign: 'center' }}>
+            <span style={{ color: '#fcd34d', fontWeight: '700', letterSpacing: '0.03em' }}>Claim escalated to senior officer for review.</span>
           </div>
         )}
 
-        {/* All 13 Sections */}
-        {renderSection1()}
-        {renderSection2()}
-        {renderSection3()}
-        {renderSection4()}
-        {renderSection5()}
-        {renderSection6()}
-        {renderSection14()}
-        {renderSection7()}
-        {renderSection8()}
-        {renderSection9()}
-        {renderSection10()}
-        {renderSection11()}
-        {renderSection12()}
-        {renderSection13()}
+        <div ref={sectionStageRef} style={currentWorkflowGridStyle}>
+          {visibleSections.map((entry) => (
+            <div
+              key={entry.id}
+              className="od-anim-item"
+              style={getWorkflowItemStyle(entry.id)}
+            >
+              {entry.node}
+            </div>
+          ))}
+        </div>
 
-        {/* Timeline */}
-        {renderTimeline()}
+        <div className="od-page-nav" style={{ marginTop: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <div style={sectionPill}>Showing cards {totalVisibleCards === 0 ? 0 : startIndex + 1} to {endIndex} of {totalVisibleCards}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => setWorkflowPage((p) => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              onMouseEnter={safePage === 0 ? null : hoverEffect}
+              onMouseLeave={safePage === 0 ? null : leaveEffect}
+              className="water-btn water-btn--sm back-btn-cs"
+              style={{ opacity: safePage === 0 ? 0.45 : 1, cursor: safePage === 0 ? 'not-allowed' : 'pointer' }}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkflowPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              onMouseEnter={safePage >= totalPages - 1 ? null : hoverEffect}
+              onMouseLeave={safePage >= totalPages - 1 ? null : leaveEffect}
+              className="water-btn water-btn--sm"
+              style={{ opacity: safePage >= totalPages - 1 ? 0.45 : 1, cursor: safePage >= totalPages - 1 ? 'not-allowed' : 'pointer' }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
 
         {/* Request Additional Documents Modal */}
         {requestDocsOpen && (
@@ -2280,7 +2815,7 @@ function OfficerDashboard({ onSwitchRole }) {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', marginBottom: '22px' }}>
                 <div>
-                  <h3 style={{ margin: 0, color: '#fff', fontFamily: "'Bebas Neue', Oswald, sans-serif", fontSize: '2rem', letterSpacing: '0.06em' }}>REQUEST_DOCUMENTS</h3>
+                  <h3 style={{ margin: 0, color: '#fff', fontSize: '1.8rem', letterSpacing: '-0.02em', fontWeight: 520 }}>Request Documents</h3>
                   <p style={{ margin: '10px 0 0', color: '#a3a3a3', fontSize: '14px', letterSpacing: '0.04em' }}>Select missing document types and provide a clear reason.</p>
                 </div>
                 <button
@@ -2291,14 +2826,14 @@ function OfficerDashboard({ onSwitchRole }) {
                   onMouseLeave={leaveEffect}
                   style={{ ...btnOutline, opacity: requestDocsSubmitting ? 0.4 : 1, cursor: requestDocsSubmitting ? 'not-allowed' : 'pointer' }}
                 >
-                  CANCEL
+                  Cancel
                 </button>
               </div>
 
               <form onSubmit={handleSubmitRequestDocs}>
                 <div style={{ marginBottom: '22px' }}>
-                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>MISSING DOCUMENT TYPES</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Missing Document Types</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                     {REQUEST_DOCUMENT_TYPE_OPTIONS.map((docType) => {
                       const checked = requestDocsTypes.includes(docType)
                       return (
@@ -2313,7 +2848,7 @@ function OfficerDashboard({ onSwitchRole }) {
                             disabled={requestDocsSubmitting}
                             style={{ width: '18px', height: '18px', accentColor: '#ffffff' }}
                           />
-                          <span style={{ color: '#fff', fontWeight: '800', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{docType.replace(/_/g, ' ')}</span>
+                          <span style={{ color: '#fff', fontWeight: '800', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'none' }}>{toReadableLabel(docType)}</span>
                         </label>
                       )
                     })}
@@ -2321,7 +2856,7 @@ function OfficerDashboard({ onSwitchRole }) {
                 </div>
 
                 <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>REASON</label>
+                  <label style={{ display: 'block', marginBottom: '12px', fontSize: '12px', fontWeight: '600', color: '#a3a3a3', letterSpacing: '0.1em' }}>Reason</label>
                   <textarea
                     value={requestDocsReason}
                     onChange={(e) => setRequestDocsReason(e.target.value)}
@@ -2334,7 +2869,7 @@ function OfficerDashboard({ onSwitchRole }) {
 
                 {requestDocsError && (
                   <div style={{ color: '#ef4444', padding: '16px', marginBottom: '18px', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
-                    <strong>ERROR:</strong> {requestDocsError}
+                    <strong>Error:</strong> {requestDocsError}
                   </div>
                 )}
 
@@ -2346,7 +2881,7 @@ function OfficerDashboard({ onSwitchRole }) {
                     onMouseLeave={!requestDocsSubmitting ? leaveEffect : null}
                     style={{ ...btnPrimary, opacity: requestDocsSubmitting ? 0.4 : 1, cursor: requestDocsSubmitting ? 'not-allowed' : 'pointer' }}
                   >
-                    {requestDocsSubmitting ? 'REQUESTING...' : 'SEND REQUEST'}
+                    {requestDocsSubmitting ? 'Requesting...' : 'Send Request'}
                   </button>
                 </div>
               </form>
@@ -2361,45 +2896,142 @@ function OfficerDashboard({ onSwitchRole }) {
   // Main Render
   // -----------------------------------------------
   return (
-    <div ref={dashboardRef} style={{ minHeight: '100vh', backgroundColor: '#0d0d0d', color: '#fff', fontFamily: "'Bebas Neue', 'Oswald', sans-serif" }}>
-      <header style={{ 
-        padding: '30px 40px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(255,255,255,0.05)' 
-      }}>
-        <h1 style={{ 
-          margin: 0, 
-          fontSize: '3vw', 
-          color: '#fff',
-          letterSpacing: '-0.04em',
-          textTransform: 'uppercase',
-          lineHeight: '1'
-        }}>OFFICER DB°</h1>
-        <button onClick={onSwitchRole}
-          style={{ 
-            padding: '12px 24px', 
-            backgroundColor: '#ffffff', 
-            color: '#0d0d0d', 
-            border: 'none', 
-            borderRadius: '999px',
-            fontSize: '14px',
-            fontWeight: '600',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            cursor: 'pointer',
-            transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}
-          onMouseEnter={e => e.target.style.transform = 'scale(1.05)'}
-          onMouseLeave={e => e.target.style.transform = 'scale(1)'}
-        >
-          Exit Role
-        </button>
-      </header>
-      <main style={{ padding: '40px', maxWidth: '1400px', margin: '0 auto', fontFamily: "'Inter', sans-serif" }}>
-        {selectedClaim ? renderWorkflowPanel() : renderClaimsQueue()}
-      </main>
+    <div
+      ref={dashboardRef}
+      className="officer-dashboard-page"
+      style={{
+        minHeight: '100vh',
+        background:
+          'radial-gradient(125% 110% at 10% 0%, rgba(84,110,255,0.24), transparent 44%), radial-gradient(120% 115% at 92% 8%, rgba(16,185,129,0.2), transparent 48%), linear-gradient(180deg, #0b0d14 0%, #10151f 50%, #0a0d15 100%)',
+        color: '#fff',
+        fontFamily: FONT_STACK,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
+      <style>{`
+        .officer-dashboard-page,
+        .officer-dashboard-page * {
+          font-family: ${FONT_STACK} !important;
+        }
+        .officer-dashboard-page button {
+          position: relative;
+          overflow: hidden;
+          background: transparent !important;
+          border: 1px solid rgba(255, 255, 255, 0.28) !important;
+          color: #ffffff !important;
+          border-radius: 999px !important;
+          transition: color 0.4s ease, border-color 0.4s ease, transform 0.3s ease, box-shadow 0.3s ease !important;
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+          isolation: isolate;
+        }
+        .officer-dashboard-page button::before {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 0%;
+          background: #ffffff;
+          border-radius: 50% 50% 0 0;
+          transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.5s ease;
+          z-index: -1;
+        }
+        .officer-dashboard-page button:hover::before {
+          height: 100%;
+          border-radius: 0;
+        }
+        .officer-dashboard-page button:hover:not(:disabled) {
+          color: #1c1d20 !important;
+          border-color: #ffffff !important;
+        }
+        .officer-dashboard-page button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed !important;
+        }
+        .officer-dashboard-page input:focus,
+        .officer-dashboard-page select:focus,
+        .officer-dashboard-page textarea:focus {
+          border-color: rgba(255, 255, 255, 0.28) !important;
+          box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06) !important;
+        }
+      `}</style>
+
+      <div className="nx-noise-overlay" />
+      <div
+        ref={(el) => {
+          ambientOrbRefs.current[0] = el
+        }}
+        style={{
+          position: 'absolute',
+          right: '-18%',
+          top: '-24%',
+          width: '62%',
+          height: '62%',
+          background: 'radial-gradient(circle at center, rgba(16,185,129,0.22) 0%, transparent 62%)',
+          filter: 'blur(88px)',
+          opacity: 0.88,
+          zIndex: 0,
+          pointerEvents: 'none'
+        }}
+      />
+      <div
+        ref={(el) => {
+          ambientOrbRefs.current[1] = el
+        }}
+        style={{
+          position: 'absolute',
+          left: '-20%',
+          bottom: '-30%',
+          width: '56%',
+          height: '56%',
+          background: 'radial-gradient(circle at center, rgba(59,130,246,0.16) 0%, transparent 60%)',
+          filter: 'blur(96px)',
+          opacity: 0.72,
+          zIndex: 0,
+          pointerEvents: 'none'
+        }}
+      />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <header style={{ padding: '24px clamp(18px, 3vw, 34px) 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', background: 'linear-gradient(135deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02))', backdropFilter: 'blur(10px)', gap: '14px', flexWrap: 'wrap' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 3.6vw, 3rem)', color: '#fff', letterSpacing: '-0.03em', lineHeight: 0.98, fontWeight: 520 }}>
+              Officer Dashboard
+            </h1>
+            <p style={{ margin: '10px 0 0', color: 'rgba(255,255,255,0.58)', fontSize: '0.96rem' }}>
+              Manage claims with the same visual language as the customer journey.
+            </p>
+          </div>
+          <button onClick={handleExitRole} onMouseEnter={hoverEffect} onMouseLeave={leaveEffect} className="water-btn water-btn--sm back-btn-cs">
+            Exit Role
+          </button>
+        </header>
+
+        <main style={{ padding: '22px clamp(16px, 2.6vw, 28px) 32px', maxWidth: '1500px', margin: '0 auto' }}>
+          {selectedClaim ? renderWorkflowPanel() : renderClaimsQueue()}
+        </main>
+      </div>
+
+      <div
+        ref={(el) => {
+          ambientOrbRefs.current[2] = el
+        }}
+        style={{
+          position: 'absolute',
+          left: '22%',
+          top: '-16%',
+          width: '38%',
+          height: '38%',
+          background: 'radial-gradient(circle at center, rgba(168, 85, 247, 0.15) 0%, transparent 62%)',
+          filter: 'blur(84px)',
+          opacity: 0.7,
+          zIndex: 0,
+          pointerEvents: 'none'
+        }}
+      />
     </div>
   )
 }
