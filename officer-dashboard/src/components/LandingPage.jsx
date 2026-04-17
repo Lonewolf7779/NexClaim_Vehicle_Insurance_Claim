@@ -18,11 +18,13 @@ const SplitTextReveal = ({ text, className }) => {
             display: 'inline-block',
             overflow: 'hidden',
             verticalAlign: 'top',
-            marginTop: '-0.05em',
+            marginTop: '-0.02em',
             marginRight: '0.25em',
-            paddingTop: '0.18em',
-            paddingBottom: '0.34em',
-            marginBottom: '-0.18em'
+            paddingTop: '0.14em',
+            paddingBottom: '0.28em',
+            marginBottom: '-0.1em',
+            position: 'relative',
+            zIndex: 3
           }}
         >
           <span className="word-inner" style={{ display: 'inline-block', transform: 'translateY(120%)', transformOrigin: 'top left', willChange: 'transform' }}>
@@ -37,6 +39,7 @@ const SplitTextReveal = ({ text, className }) => {
 const LandingPage = ({ onAction, onLoginClick }) => {
   const masterRef = useRef(null);
   const cursorRef = useRef(null);
+  const cursorActivatedRef = useRef(false);
   const imageBgRef = useRef(null);
   const parallaxImgRef2 = useRef(null);
   const marqueeRef = useRef(null);
@@ -45,6 +48,13 @@ const LandingPage = ({ onAction, onLoginClick }) => {
   const navigate = useNavigate();
 
   const customerName = customerUser?.name || customerUser?.policeholderName || 'Customer'
+  const customerInitials =
+    customerName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0].toUpperCase())
+      .join('') || 'CU'
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -68,9 +78,12 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         z-index: 9999;
         mix-blend-mode: difference;
         transform: translate(-50%, -50%);
-        transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+        transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, opacity 0.25s ease;
         display: flex; align-items: center; justify-content: center;
-        color: black; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 1;
+        color: black; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 0;
+      }
+      .custom-cursor.cursor-live {
+        opacity: 1;
       }
       .custom-cursor.hovering {
         width: 80px; height: 80px;
@@ -103,25 +116,89 @@ const LandingPage = ({ onAction, onLoginClick }) => {
       .hero-bg-image { width: 100%; height: 130%; object-fit: cover; position: absolute; top: -15%; left: 0; will-change: transform; filter: brightness(0.9); }
       .hero-gradient-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,5,5,1) 0%, rgba(5,5,5,0.3) 50%, rgba(5,5,5,0.1) 100%); z-index: 2; pointer-events: none; }
       
-      .hero-content { position: relative; z-index: 120; pointer-events: auto; max-width: 1100px; margin-top: -10vh; }
-      .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 1.02; letter-spacing: -0.04em; margin-bottom: 2.5rem; overflow: visible; }
+      .hero-content { position: relative; z-index: 260; pointer-events: auto; max-width: 1160px; margin-top: -9vh; }
+      .hero-title { font-size: clamp(3.5rem, 9vw, 9rem); font-weight: 500; line-height: 0.9; letter-spacing: -0.04em; margin-bottom: 2rem; overflow: visible; }
       
-      .hero-subtext { font-size: clamp(1.1rem, 1.5vw, 1.4rem); color: rgba(255, 255, 255, 0.7); line-height: 1.5; max-width: 600px; margin-bottom: 4rem; }
+      .hero-subtext { font-size: clamp(1.1rem, 1.5vw, 1.4rem); color: rgba(255, 255, 255, 0.7); line-height: 1.42; max-width: 600px; margin-bottom: 3.2rem; }
 
       /* Buttons */
-      .button-group { display: flex; gap: 24px; align-items: center; margin-bottom: 4vh; }
+      .button-group { display: flex; gap: 24px; align-items: center; margin-bottom: 2.4vh; flex-wrap: wrap; }
       .btn {
-        border: none; padding: 24px 40px; border-radius: 100px; font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 12px; position: relative; overflow: hidden; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
+        border: 1px solid transparent; padding: 24px 40px; border-radius: 100px; font-size: 1.1rem; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 12px; position: relative; overflow: hidden; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
       }
       .btn-primary { background: #ffffff; color: #050505; }
       .btn-secondary { background: rgba(255, 255, 255, 0.05); color: #ffffff; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
       .btn-icon { width: 44px; height: 44px; background: rgba(0,0,0,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
       .btn-secondary .btn-icon { background: rgba(255,255,255,0.1); }
+      .hero-aux-cta { padding: 20px 34px; font-size: 0.83rem; letter-spacing: 0.08em; }
+      .hero-aux-cta .btn-icon { width: 40px; height: 40px; }
+
+      /* Logged-in hover logout pill */
+      .logout-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(14px);
+        color: #ffffff;
+        border-radius: 999px;
+        height: 56px;
+        width: 56px;
+        padding: 0 14px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: width 0.75s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.45s ease, border-color 0.45s ease, transform 0.45s ease;
+      }
+      .logout-pill:hover {
+        width: min(420px, 78vw);
+        background: rgba(255, 255, 255, 0.92);
+        border-color: #ffffff;
+        transform: translateY(-1px);
+      }
+      .logout-pill-initials {
+        width: 28px;
+        min-width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .logout-pill-text {
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateX(12px);
+        transition: opacity 0.42s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+        color: #111;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      .logout-pill:hover .logout-pill-initials {
+        color: #111;
+        background: rgba(0, 0, 0, 0.08);
+      }
+      .logout-pill:hover .logout-pill-text {
+        opacity: 1;
+        transform: translateX(0);
+        animation: logoutBreath 2.4s ease-in-out infinite;
+      }
+      .logout-pill-name {
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      @keyframes logoutBreath {
+        0%, 100% { transform: translateX(0) scale(1); }
+        50% { transform: translateX(0) scale(1.015); }
+      }
 
       /* Marquee */
-      .marquee-section { padding: 8vh 0 6vh 0; background: #050505; white-space: nowrap; overflow: hidden; display: flex; align-items: center; }
-      .marquee-content { display: inline-flex; font-size: clamp(2rem, 4vw, 4rem); font-weight: 300; letter-spacing: -0.02em; text-transform: uppercase; color: #fff; padding-right: 2rem; }
-      .marquee-content span { padding: 0 2rem; opacity: 0.4; }
+      .marquee-section { padding: 11vh 0 10vh 0; background: #050505; white-space: nowrap; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+      .marquee-content { display: inline-flex; align-items: center; justify-content: center; text-align: center; font-size: clamp(2rem, 4vw, 4rem); font-weight: 300; letter-spacing: -0.02em; text-transform: uppercase; color: #fff; padding-right: 2rem; margin: 0 auto; }
+      .marquee-content span { padding: 0 2rem; opacity: 0.4; display: inline-flex; align-items: center; justify-content: center; }
       .marquee-content span.highlight { opacity: 1; -webkit-text-stroke: 1px #fff; color: transparent; }
 
       /* Generic Section */
@@ -224,6 +301,35 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         font-weight: 500;
       }
 
+      /* Transparent hover system: keep border emphasis only */
+      .btn:hover,
+      .logout-pill:hover,
+      .tilt-card:hover,
+      .hover-feature-item:hover {
+        background: transparent !important;
+        background-color: transparent !important;
+        border-color: rgba(255, 255, 255, 0.55) !important;
+        box-shadow: none !important;
+      }
+
+      .btn:hover .btn-icon,
+      .logout-pill:hover .logout-pill-initials {
+        background: transparent !important;
+        border: 1px solid rgba(255, 255, 255, 0.45) !important;
+        color: #ffffff !important;
+      }
+
+      .logout-pill:hover .logout-pill-text,
+      .hover-feature-item:hover .feature-content h4,
+      .hover-feature-item:hover .feature-content p {
+        color: #ffffff !important;
+        text-shadow: none !important;
+      }
+
+      .hover-feature-item:hover::before {
+        opacity: 0 !important;
+      }
+
       /* Huge Image Section */
       .impact-section { padding: 0 6vw 20vh 6vw; }
       .impact-image-wrapper { width: 100%; height: 80vh; border-radius: 32px; overflow: hidden; position: relative; background: #111; }
@@ -259,9 +365,12 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         .premium-nav { padding: 24px; }
         .hero-section { padding: 12vh 24px 10vh 24px; justify-content: center; }
         .hero-content { margin-top: 80px; }
-        .hero-title { margin-top: 0px; }
+        .hero-title { margin-top: 0px; line-height: 0.94; }
+        .hero-subtext { margin-bottom: 2.4rem; }
         .button-group { flex-direction: column; width: 100%; }
         .btn { width: 100%; justify-content: center; }
+        .hero-aux-cta { width: 100%; }
+        .logout-pill:hover { width: min(350px, 92vw); }
         .section-layout { padding: 12vh 24px; }
         .impact-section { padding: 0 24px 10vh 24px; }
         .footer-links { gap: 40px; flex-direction: column; }
@@ -345,6 +454,11 @@ const LandingPage = ({ onAction, onLoginClick }) => {
     
     // 1. Mouse Follower
     const moveCursor = (e) => {
+      if (!cursor) return;
+      if (!cursorActivatedRef.current) {
+        cursorActivatedRef.current = true;
+        cursor.classList.add('cursor-live');
+      }
       gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0.15, ease: 'power2.out' });
     };
     window.addEventListener('mousemove', moveCursor);
@@ -439,28 +553,17 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         </a>
         {auth.customer && (
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
-            <div
-              className="btn btn-secondary"
-              style={{ padding: '14px 22px', fontSize: '0.85rem', fontWeight: 600 }}
+            <button
+              type="button"
+              className="logout-pill"
+              onClick={() => {
+                logoutCustomer()
+                navigate('/', { replace: true })
+              }}
             >
-              <span style={{ opacity: 0.7 }}>Welcome</span>
-              <span
-                className="nx-name-gradient"
-                style={{ fontWeight: 700, letterSpacing: '-0.01em', textTransform: 'none' }}
-              >
-                {customerName}
-              </span>
-            </div>
-
-            <div
-              className="magnetic-wrap"
-              onClick={() => navigate('/customer-dashboard')}
-              style={{ cursor: 'pointer' }}
-            >
-              <span className="btn btn-primary magnetic-inner" style={{ padding: '16px 32px', fontSize: '0.85rem', fontWeight: 600 }}>
-                ENTER DASHBOARD <ArrowRight size={16} />
-              </span>
-            </div>
+              <span className="logout-pill-initials">{customerInitials}</span>
+              <span className="logout-pill-text">wanna logout <span className="logout-pill-name">{customerName}</span>?</span>
+            </button>
           </div>
         )}
       </nav>
@@ -484,37 +587,23 @@ const LandingPage = ({ onAction, onLoginClick }) => {
             The next generation of vehicle insurance. Powered by vision models and cryptography to settle claims instantly without paperwork or surveyor delays.
           </p>
 
-          <div className="button-group">
-            {auth.customer ? (
-              <>
-                <button className="magnetic-wrap btn btn-primary" onClick={() => navigate('/customer-dashboard')} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
-                  <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    ENTER DASHBOARD <div className="btn-icon"><ArrowRight size={20} /></div>
-                  </span>
-                </button>
-
-                <button
-                  className="magnetic-wrap btn btn-secondary"
-                  type="button"
-                  onClick={() => {
-                    logoutCustomer()
-                    navigate('/', { replace: true })
-                  }}
-                  style={{ paddingLeft: '44px', paddingRight: '44px' }}
-                >
-                  <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    LOGOUT <div className="btn-icon"><ArrowUpRight size={20} /></div>
-                  </span>
-                </button>
-              </>
-            ) : (
+          {!auth.customer && (
+            <div className="button-group">
               <button className="magnetic-wrap btn btn-primary" onClick={onLoginClick} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
                 <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  LOGIN / ACCESS PORTAL <div className="btn-icon"><ArrowRight size={20} /></div>
+                  ENTER CUSTOMER PORTAL <div className="btn-icon"><ArrowRight size={20} /></div>
                 </span>
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {auth.customer && (
+            <button className="magnetic-wrap btn btn-primary hero-aux-cta" onClick={() => navigate('/customer-dashboard')}>
+              <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                GO TO DASHBOARD <div className="btn-icon"><ArrowRight size={18} /></div>
+              </span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -526,12 +615,12 @@ const LandingPage = ({ onAction, onLoginClick }) => {
            <span>Instant Settlement</span> <span className="highlight">•</span>
            <span>AI Validation</span> <span className="highlight">•</span>
            <span>24/7 Support</span> <span className="highlight">•</span>
-           <span>Trully Cashless</span> <span className="highlight">•</span>
+           <span>Truly Cashless</span> <span className="highlight">•</span>
            <span>Zero Paperwork</span> <span className="highlight">•</span>
            <span>Instant Settlement</span> <span className="highlight">•</span>
            <span>AI Validation</span> <span className="highlight">•</span>
            <span>24/7 Support</span> <span className="highlight">•</span>
-           <span>Trully Cashless</span> <span className="highlight">•</span>
+           <span>Truly Cashless</span> <span className="highlight">•</span>
         </div>
       </section>
 
@@ -572,9 +661,9 @@ const LandingPage = ({ onAction, onLoginClick }) => {
           <div className="about-left">
             <SplitTextReveal text="Why choose NexClaim?" />
             <p style={{ marginTop: '2rem' }}>
-              We aren't just an insurance provider; we are a technology-first protection ecosystem. 
-              By removing manual surveyor checks and excessive documentation, we offer unparalleled speed 
-              when you need it the most.
+              Claim moments are emotional and time-sensitive.
+              NexClaim blends instant automation with human review so you get clear decisions,
+              transparent updates, and support that feels genuinely personal.
             </p>
           </div>
           
@@ -582,22 +671,22 @@ const LandingPage = ({ onAction, onLoginClick }) => {
             <div className="hover-feature-list">
               <div className="hover-feature-item magnetic-wrap" style={{width: '100%'}}>
                 <div className="feature-content magnetic-inner" style={{width: '100%'}}>
-                  <h4>0% Depreciation on Repairs</h4>
-                  <p>In the event of an accident, you won't pay a single rupee out of pocket for plastic, glass, or rubber parts.</p>
+                  <h4>AI-First Claim Triage</h4>
+                  <p>Photos, policy data, and incident context are evaluated in seconds so straightforward cases move ahead immediately.</p>
                 </div>
               </div>
               
               <div className="hover-feature-item magnetic-wrap" style={{width: '100%'}}>
                 <div className="feature-content magnetic-inner" style={{width: '100%'}}>
-                  <h4>24/7 Roadside Assistance</h4>
-                  <p>Flat battery? Empty tank? Major breakdown? Our network responds in under 30 minutes nationwide.</p>
+                  <h4>Transparent Milestone Tracking</h4>
+                  <p>Every checkpoint from validation to payout stays visible in one timeline, so you always know what comes next.</p>
                 </div>
               </div>
               
               <div className="hover-feature-item magnetic-wrap" style={{width: '100%'}}>
                 <div className="feature-content magnetic-inner" style={{width: '100%'}}>
-                  <h4>Instant Payout Integration</h4>
-                  <p>When claims are approved, the funds are deposited directly via UPI and NEFT in seconds, bypassing bank queues.</p>
+                  <h4>Human Escalation When Needed</h4>
+                  <p>Complex or high-risk cases are routed to specialists quickly, keeping fairness and speed balanced at every step.</p>
                 </div>
               </div>
             </div>

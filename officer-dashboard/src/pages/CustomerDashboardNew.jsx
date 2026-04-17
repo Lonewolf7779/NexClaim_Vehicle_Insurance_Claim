@@ -3,7 +3,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { FileText, MapPin, Lock, Activity } from 'lucide-react';
+import { FileText, MapPin, Lock, Activity, ArrowRight, ArrowUpRight } from 'lucide-react';
 import CustomerAvatarLogout from '../components/CustomerAvatarLogout';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -155,53 +155,116 @@ const CustomerDashboardNew = () => {
           pointer-events: auto;
           max-width: 1100px;
           margin-top: -10vh;
+          padding-right: clamp(14px, 3vw, 56px);
+          overflow: visible;
+        }
+
+        .utility-go-back-btn {
+          border: 1px solid transparent;
+          background: #ffffff;
+          color: #050505;
+          padding: 14px 24px;
+          border-radius: 999px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+          cursor: pointer;
+          transition: transform 0.35s ease, box-shadow 0.35s ease, background-color 0.35s ease;
+          box-shadow: 0 10px 28px rgba(255, 255, 255, 0.22);
+        }
+
+        .utility-go-back-btn:hover {
+          transform: translateY(-2px) scale(1.02);
+          box-shadow: 0 14px 34px rgba(255, 255, 255, 0.3);
+          background: #f8f8f8;
         }
 
         .hero-content-actions {
-          margin-top: 26px;
+          margin-top: 40px;
           display: flex;
           align-items: center;
           gap: 14px;
           flex-wrap: wrap;
         }
 
-        .hero-back-main-btn {
-          border: 1px solid rgba(255, 255, 255, 0.24);
-          background: rgba(255, 255, 255, 0.04);
-          color: rgba(255, 255, 255, 0.92);
-          padding: 12px 20px;
-          border-radius: 999px;
-          font-size: 0.86rem;
-          letter-spacing: 0.07em;
+        .hero-cta-btn {
+          border: 1px solid transparent;
+          padding: 20px 34px;
+          border-radius: 100px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          position: relative;
+          overflow: hidden;
           text-transform: uppercase;
-          cursor: pointer;
-          transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+          letter-spacing: 0.08em;
           font-family: "Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif;
+          cursor: pointer;
         }
 
-        .hero-back-main-btn:hover {
-          border-color: rgba(255, 255, 255, 0.48);
-          background: rgba(255, 255, 255, 0.1);
+        .hero-cta-primary {
+          background: #ffffff;
+          color: #050505;
+        }
+
+        .hero-cta-secondary {
+          background: rgba(255, 255, 255, 0.05);
           color: #ffffff;
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .hero-cta-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.1);
+        }
+
+        .hero-cta-secondary .hero-cta-icon {
+          background: rgba(255, 255, 255, 0.1);
         }
 
         .hero-greeting {
           font-size: clamp(3.5rem, 9vw, 9rem);
           font-weight: 500;
-          line-height: 0.95;
+          line-height: 1.03;
           letter-spacing: -0.04em;
           margin-bottom: 2.5rem;
           color: #ffffff;
+          text-shadow: 0 8px 36px rgba(0, 0, 0, 0.42);
+          max-width: 100%;
+          overflow: visible;
+          word-break: break-word;
           opacity: 0;
+        }
+
+        .hero-greeting .nx-name-gradient {
+          background: none;
+          -webkit-background-clip: border-box;
+          background-clip: border-box;
+          -webkit-text-fill-color: #ffffff;
+          color: #ffffff;
+          display: inline-block;
+          padding-right: 0.05em;
         }
 
         .hero-subtext {
           font-size: clamp(1.1rem, 1.5vw, 1.4rem);
-          color: rgba(255, 255, 255, 0.7);
+          color: rgba(255, 255, 255, 0.95);
           font-weight: 400;
           line-height: 1.5;
           max-width: 600px;
           margin-bottom: 0;
+          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.34);
           opacity: 0;
         }
 
@@ -215,7 +278,7 @@ const CustomerDashboardNew = () => {
 
         .quotes-rotator-section {
           position: relative;
-          padding: 0 6vw 14vh 6vw;
+          padding: 8vh 6vw 14vh 6vw;
           background: #050505;
           z-index: 10;
         }
@@ -413,6 +476,34 @@ const CustomerDashboardNew = () => {
           font-weight: 500;
         }
 
+        /* Transparent hover system: keep border emphasis only */
+        .utility-go-back-btn:hover,
+        .hero-cta-btn:hover,
+        .tilt-card:hover,
+        .hover-feature-item:hover {
+          background: transparent !important;
+          background-color: transparent !important;
+          border-color: rgba(255, 255, 255, 0.55) !important;
+          box-shadow: none !important;
+          color: #ffffff !important;
+        }
+
+        .hero-cta-btn:hover .hero-cta-icon {
+          background: transparent !important;
+          border: 1px solid rgba(255, 255, 255, 0.45) !important;
+          color: #ffffff !important;
+        }
+
+        .hover-feature-item:hover .feature-content h4,
+        .hover-feature-item:hover .feature-content p {
+          color: #ffffff !important;
+          text-shadow: none !important;
+        }
+
+        .hover-feature-item:hover::before {
+          opacity: 0 !important;
+        }
+
         /* Footer */
         .customer-footer {
           padding: 10vh 6vw 5vh 6vw;
@@ -517,6 +608,7 @@ const CustomerDashboardNew = () => {
         .customer-dashboard .nx-customer-utility-bar {
           z-index: 1600;
           justify-content: flex-end;
+          gap: 12px;
         }
 
         @media (max-width: 1024px) {
@@ -536,6 +628,21 @@ const CustomerDashboardNew = () => {
 
           .hero-content {
             margin-top: 80px;
+          }
+
+          .hero-content-actions {
+            gap: 12px;
+          }
+
+          .utility-go-back-btn {
+            padding: 12px 18px;
+            font-size: 0.72rem;
+          }
+
+          .hero-cta-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 18px 26px;
           }
 
           .section-layout {
@@ -643,6 +750,13 @@ const CustomerDashboardNew = () => {
       { opacity: 0, y: 20 },
       { opacity: 1, y: 0, duration: 1 },
       '-=0.8'
+    );
+
+    tl.fromTo(
+      dashboardRef.current?.querySelectorAll('.hero-content-actions button, .utility-go-back-btn'),
+      { opacity: 0, y: 24 },
+      { opacity: 1, y: 0, duration: 0.95, stagger: 0.12 },
+      '-=0.65'
     );
 
     // 3D Tilt Logic
@@ -824,6 +938,9 @@ const CustomerDashboardNew = () => {
       <div className="noise-overlay" />
       <div className="custom-cursor" ref={cursorRef} />
       <div className="nx-customer-utility-bar">
+        <button type="button" className="utility-go-back-btn magnetic-wrap" onClick={() => navigate('/')}>
+          <span className="magnetic-inner">GO BACK</span>
+        </button>
         <CustomerAvatarLogout />
       </div>
 
@@ -848,8 +965,16 @@ const CustomerDashboardNew = () => {
           </p>
 
           <div className="hero-content-actions">
-            <button type="button" className="hero-back-main-btn magnetic-wrap" onClick={() => navigate('/')}>
-              <span className="magnetic-inner">← Back to Main Landing Page</span>
+            <button type="button" className="hero-cta-btn hero-cta-primary magnetic-wrap" onClick={() => navigate('/track')}>
+              <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                TRACK YOUR CLAIM <span className="hero-cta-icon"><ArrowRight size={19} /></span>
+              </span>
+            </button>
+
+            <button type="button" className="hero-cta-btn hero-cta-secondary magnetic-wrap" onClick={() => navigate('/claim')}>
+              <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                FILE A NEW CLAIM <span className="hero-cta-icon"><ArrowUpRight size={19} /></span>
+              </span>
             </button>
           </div>
         </div>

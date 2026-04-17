@@ -133,7 +133,7 @@ function App() {
                 type="password" 
                 value={form.pass} 
                 onChange={(e) => setForm(prev => ({ ...prev, pass: e.target.value }))}
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="********"
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -259,91 +259,93 @@ function App() {
   return (
     <>
       {loading && <Preloader onComplete={handlePreloaderComplete} />}
-      <div className="app">
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/customer-login" element={<Login />} />
-        <Route path="/my-claims" element={<CustomerGate><CustomerClaimsPage /></CustomerGate>} />
-        <Route path="/my-claims/:id" element={<CustomerGate><CustomerClaimDetailPage /></CustomerGate>} />
-        <Route
-          path="/"
-          element={
-            <LandingPage
-              onAction={(actionType) => {
-                const targetPath = actionType === 'track' ? '/track' : '/claim'
-                requestCustomerLogin(targetPath)
-              }}
-              onLoginClick={() => requestCustomerLogin('/customer-dashboard')}
+      {!loading && (
+        <div className="app">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/customer-login" element={<Login />} />
+            <Route path="/my-claims" element={<CustomerGate><CustomerClaimsPage /></CustomerGate>} />
+            <Route path="/my-claims/:id" element={<CustomerGate><CustomerClaimDetailPage /></CustomerGate>} />
+            <Route
+              path="/"
+              element={
+                <LandingPage
+                  onAction={(actionType) => {
+                    const targetPath = actionType === 'track' ? '/track' : '/claim'
+                    requestCustomerLogin(targetPath)
+                  }}
+                  onLoginClick={() => requestCustomerLogin('/customer-dashboard')}
+                />
+              }
             />
-          }
-        />
-        <Route
-          path="/NexOfficer"
-          element={
-            <RequireRole role="officer">
-              <OfficerDashboard onSwitchRole={handleLogout} />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/NexSupreme"
-          element={
-            <RequireRole role="supreme">
-              <EscalationDashboard onSwitchRole={handleLogout} />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/NexSamurai"
-          element={
-            <RequireRole role="samurai">
-              <SurveyorDashboard onSwitchRole={handleLogout} />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/customer-dashboard"
-          element={
-            <CustomerGate target="/customer-dashboard">
-              <CustomerDashboardNew />
-            </CustomerGate>
-          }
-        />
-        <Route
-          path="/claim"
-          element={
-            <CustomerGate target="/claim">
-              <CustomerFileClaim />
-            </CustomerGate>
-          }
-        />
-        <Route
-          path="/track"
-          element={
-            <CustomerGate target="/track">
-              <CustomerTrack />
-            </CustomerGate>
-          }
-        />
-        <Route
-          path="/policy-locker"
-          element={
-            <CustomerGate target="/policy-locker">
-              <CustomerPolicyLocker />
-            </CustomerGate>
-          }
-        />
-        <Route
-          path="/garages"
-          element={
-            <CustomerGate target="/garages">
-              <CustomerGarageLocator />
-            </CustomerGate>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </div>
+            <Route
+              path="/NexOfficer"
+              element={
+                <RequireRole role="officer">
+                  <OfficerDashboard onSwitchRole={handleLogout} />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/NexSupreme"
+              element={
+                <RequireRole role="supreme">
+                  <EscalationDashboard onSwitchRole={handleLogout} />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/NexSamurai"
+              element={
+                <RequireRole role="samurai">
+                  <SurveyorDashboard onSwitchRole={handleLogout} />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/customer-dashboard"
+              element={
+                <CustomerGate target="/customer-dashboard">
+                  <CustomerDashboardNew />
+                </CustomerGate>
+              }
+            />
+            <Route
+              path="/claim"
+              element={
+                <CustomerGate target="/claim">
+                  <CustomerFileClaim />
+                </CustomerGate>
+              }
+            />
+            <Route
+              path="/track"
+              element={
+                <CustomerGate target="/track">
+                  <CustomerTrack />
+                </CustomerGate>
+              }
+            />
+            <Route
+              path="/policy-locker"
+              element={
+                <CustomerGate target="/policy-locker">
+                  <CustomerPolicyLocker />
+                </CustomerGate>
+              }
+            />
+            <Route
+              path="/garages"
+              element={
+                <CustomerGate target="/garages">
+                  <CustomerGarageLocator />
+                </CustomerGate>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      )}
     </>
   )
 }
