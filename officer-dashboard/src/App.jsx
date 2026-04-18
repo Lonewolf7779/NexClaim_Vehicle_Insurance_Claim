@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useLocation } from 'react-router-dom'
 import './App.css'
 import Preloader from './components/Preloader'
@@ -22,7 +22,7 @@ function App() {
 
   const location = useLocation()
   const [loading, setLoading] = useState(location.pathname === '/')
-  const { auth, login, logout, setRole } = useAuth()
+  const { authReady, auth, login, logout } = useAuth()
 
   const handlePreloaderComplete = () => {
     setLoading(false)
@@ -245,14 +245,32 @@ function App() {
 
   const CustomerGate = ({ target, children }) => {
     const location = useLocation()
-    useEffect(() => {
-      if (!auth.customer) {
-        const desired = target || location.pathname
-        navigate(`/login?next=${encodeURIComponent(desired)}`, { replace: true })
-      }
-    }, [auth.customer, target, navigate, location])
 
-    if (!auth.customer) return null
+    if (!authReady) {
+      return (
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'grid',
+            placeItems: 'center',
+            background: '#050505',
+            color: 'rgba(255,255,255,0.72)',
+            letterSpacing: '0.09em',
+            textTransform: 'uppercase',
+            fontFamily: '"Helvetica Neue", "Neue Montreal", Helvetica, Arial, sans-serif',
+            fontSize: '0.74rem'
+          }}
+        >
+          Preparing secure session...
+        </div>
+      )
+    }
+
+    if (!auth.customer) {
+      const desired = target || `${location.pathname}${location.search}`
+      return <Navigate to={`/login?next=${encodeURIComponent(desired)}`} replace />
+    }
+
     return children
   }
 

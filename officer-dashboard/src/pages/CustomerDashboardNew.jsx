@@ -87,12 +87,13 @@ const CustomerDashboardNew = () => {
           top: 0; left: 0;
           width: 14px; height: 14px;
           background-color: #ffffff;
+          border: 1px solid transparent;
           border-radius: 50%;
           pointer-events: none;
           z-index: 9999;
           mix-blend-mode: difference;
           transform: translate(-50%, -50%);
-          transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+          transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -107,7 +108,9 @@ const CustomerDashboardNew = () => {
         .custom-cursor.hovering {
           width: 80px;
           height: 80px;
-          background-color: #ffffff;
+          background-color: transparent;
+          border-color: rgba(255, 255, 255, 0.95);
+          color: #ffffff;
           mix-blend-mode: normal;
           opacity: 1;
         }
@@ -474,34 +477,6 @@ const CustomerDashboardNew = () => {
         .hover-feature-item:hover .feature-content p {
           color: #111;
           font-weight: 500;
-        }
-
-        /* Transparent hover system: keep border emphasis only */
-        .utility-go-back-btn:hover,
-        .hero-cta-btn:hover,
-        .tilt-card:hover,
-        .hover-feature-item:hover {
-          background: transparent !important;
-          background-color: transparent !important;
-          border-color: rgba(255, 255, 255, 0.55) !important;
-          box-shadow: none !important;
-          color: #ffffff !important;
-        }
-
-        .hero-cta-btn:hover .hero-cta-icon {
-          background: transparent !important;
-          border: 1px solid rgba(255, 255, 255, 0.45) !important;
-          color: #ffffff !important;
-        }
-
-        .hover-feature-item:hover .feature-content h4,
-        .hover-feature-item:hover .feature-content p {
-          color: #ffffff !important;
-          text-shadow: none !important;
-        }
-
-        .hover-feature-item:hover::before {
-          opacity: 0 !important;
         }
 
         /* Footer */

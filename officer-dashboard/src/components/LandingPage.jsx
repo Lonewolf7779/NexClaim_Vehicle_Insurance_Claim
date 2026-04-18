@@ -73,12 +73,13 @@ const LandingPage = ({ onAction, onLoginClick }) => {
         top: 0; left: 0;
         width: 14px; height: 14px;
         background-color: #ffffff;
+        border: 1px solid transparent;
         border-radius: 50%;
         pointer-events: none;
         z-index: 9999;
         mix-blend-mode: difference;
         transform: translate(-50%, -50%);
-        transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, opacity 0.25s ease;
+        transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease, border-color 0.3s ease, opacity 0.25s ease;
         display: flex; align-items: center; justify-content: center;
         color: black; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; opacity: 0;
       }
@@ -87,7 +88,9 @@ const LandingPage = ({ onAction, onLoginClick }) => {
       }
       .custom-cursor.hovering {
         width: 80px; height: 80px;
-        background-color: #ffffff;
+        background-color: transparent;
+        border-color: rgba(255, 255, 255, 0.95);
+        color: #ffffff;
         mix-blend-mode: normal;
         opacity: 1;
       }
@@ -299,35 +302,6 @@ const LandingPage = ({ onAction, onLoginClick }) => {
       .hover-feature-item:hover .feature-content p {
         color: #111;
         font-weight: 500;
-      }
-
-      /* Transparent hover system: keep border emphasis only */
-      .btn:hover,
-      .logout-pill:hover,
-      .tilt-card:hover,
-      .hover-feature-item:hover {
-        background: transparent !important;
-        background-color: transparent !important;
-        border-color: rgba(255, 255, 255, 0.55) !important;
-        box-shadow: none !important;
-      }
-
-      .btn:hover .btn-icon,
-      .logout-pill:hover .logout-pill-initials {
-        background: transparent !important;
-        border: 1px solid rgba(255, 255, 255, 0.45) !important;
-        color: #ffffff !important;
-      }
-
-      .logout-pill:hover .logout-pill-text,
-      .hover-feature-item:hover .feature-content h4,
-      .hover-feature-item:hover .feature-content p {
-        color: #ffffff !important;
-        text-shadow: none !important;
-      }
-
-      .hover-feature-item:hover::before {
-        opacity: 0 !important;
       }
 
       /* Huge Image Section */
@@ -591,7 +565,7 @@ const LandingPage = ({ onAction, onLoginClick }) => {
             <div className="button-group">
               <button className="magnetic-wrap btn btn-primary" onClick={onLoginClick} style={{ paddingLeft: '60px', paddingRight: '60px' }}>
                 <span className="magnetic-inner" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  ENTER CUSTOMER PORTAL <div className="btn-icon"><ArrowRight size={20} /></div>
+                  ENTER CUSTOMER DASHBOARD <div className="btn-icon"><ArrowRight size={20} /></div>
                 </span>
               </button>
             </div>

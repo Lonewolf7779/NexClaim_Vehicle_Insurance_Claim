@@ -83,6 +83,7 @@ export default function CustomerLogin({ onSuccess, onClose }) {
 
   const handlePreloaderComplete = () => {
     setShowPreloader(false)
+    setAuthenticating(false)
     setError('')
     onSuccess({ policyNumber: form.policyNumber.trim().toUpperCase(), policeholderName: welcomeName })
   }
@@ -92,7 +93,7 @@ export default function CustomerLogin({ onSuccess, onClose }) {
   }
 
   return (
-    <RoleTransition roleName={theme.title} isAfterLogin={authenticating}>
+    <RoleTransition roleName={theme.title}>
       <div
         style={{
           minHeight: '100vh',

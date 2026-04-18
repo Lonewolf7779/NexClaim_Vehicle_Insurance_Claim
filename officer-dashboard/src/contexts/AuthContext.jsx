@@ -1,29 +1,48 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
 const AuthContext = createContext(null)
+const CUSTOMER_SESSION_KEY = 'customer_session'
+
+const normalizeCustomerSession = (session) => {
+  if (!session || typeof session !== 'object') return null
+
+  const normalizedName = session.policeholderName || session.policyHolderName || session.name
+  if (!normalizedName) return null
+
+  return {
+    ...session,
+    policeholderName: normalizedName,
+    name: normalizedName
+  }
+}
 
 export const AuthProvider = ({ children }) => {
   const [auth, setAuth] = useState({ customer: false, officer: false, supreme: false, samurai: false })
   const [customerUser, setCustomerUser] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
-    // Load customer session from localStorage on mount
-    const savedCustomerSession = localStorage.getItem('customer_session')
+    const savedCustomerSession = sessionStorage.getItem(CUSTOMER_SESSION_KEY)
+    const legacyCustomerSession = localStorage.getItem(CUSTOMER_SESSION_KEY)
+
+    // Remove stale persistent customer session so a fresh portal visit starts logged out.
+    if (legacyCustomerSession && !savedCustomerSession) {
+      localStorage.removeItem(CUSTOMER_SESSION_KEY)
+    }
+
     if (savedCustomerSession) {
       try {
         const parsedSession = JSON.parse(savedCustomerSession)
-        const normalized = (parsedSession && typeof parsedSession === 'object')
-          ? {
-            ...parsedSession,
-            policeholderName: parsedSession.policeholderName || parsedSession.policyHolderName || parsedSession.name,
-            name: parsedSession.name || parsedSession.policeholderName || parsedSession.policyHolderName
-          }
-          : parsedSession
-        setCustomerUser(normalized)
-        setAuth(prev => ({ ...prev, customer: true }))
+        const normalized = normalizeCustomerSession(parsedSession)
+        if (normalized) {
+          setCustomerUser(normalized)
+          setAuth(prev => ({ ...prev, customer: true }))
+        } else {
+          sessionStorage.removeItem(CUSTOMER_SESSION_KEY)
+        }
       } catch (err) {
         console.error('Failed to parse customer session:', err)
-        localStorage.removeItem('customer_session')
+        sessionStorage.removeItem(CUSTOMER_SESSION_KEY)
       }
     }
 
@@ -31,6 +50,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('auth_officer')
     localStorage.removeItem('auth_supreme')
     localStorage.removeItem('auth_samurai')
+
+    setAuthReady(true)
   }, [])
 
   const loginCustomer = (policyNumber, policeholderName) => {
@@ -40,13 +61,15 @@ export const AuthProvider = ({ children }) => {
       name: policeholderName,
       loginTime: new Date().toISOString()
     }
-    localStorage.setItem('customer_session', JSON.stringify(session))
+    sessionStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(session))
+    localStorage.removeItem(CUSTOMER_SESSION_KEY)
     setCustomerUser(session)
     setAuth(prev => ({ ...prev, customer: true }))
   }
 
   const logoutCustomer = () => {
-    localStorage.removeItem('customer_session')
+    sessionStorage.removeItem(CUSTOMER_SESSION_KEY)
+    localStorage.removeItem(CUSTOMER_SESSION_KEY)
     setCustomerUser(null)
     setAuth(prev => ({ ...prev, customer: false }))
   }
@@ -66,13 +89,15 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('auth_officer')
     localStorage.removeItem('auth_supreme')
     localStorage.removeItem('auth_samurai')
-    localStorage.removeItem('customer_session')
+    sessionStorage.removeItem(CUSTOMER_SESSION_KEY)
+    localStorage.removeItem(CUSTOMER_SESSION_KEY)
     setCustomerUser(null)
     setAuth({ customer: false, officer: false, supreme: false, samurai: false })
   }
 
   return (
     <AuthContext.Provider value={{ 
+      authReady,
       auth, 
       login, 
       logout, 
